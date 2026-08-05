@@ -115,8 +115,13 @@ function makeService(
       return {
         status: 'success' as const,
         rateLimits: {
-          fiveHour: { usedPercent: 10, remainingPercent: 90, resetsAt: null },
-          weekly: null,
+          primary: {
+            usedPercent: 10,
+            remainingPercent: 90,
+            resetsAt: null,
+            windowDurationMins: 300,
+          },
+          secondary: null,
         },
       }
     })

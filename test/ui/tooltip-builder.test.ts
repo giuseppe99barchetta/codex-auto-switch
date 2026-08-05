@@ -15,15 +15,17 @@ function makeProfile(overrides: Partial<ProfileSummary> = {}): ProfileSummary {
     createdAt: '2026-06-19T10:00:00.000Z',
     updatedAt: '2026-06-19T10:00:00.000Z',
     rateLimits: {
-      fiveHour: {
+      primary: {
         usedPercent: 42.2,
         remainingPercent: 57.8,
         resetsAt: 1_700_000_000,
+        windowDurationMins: 300,
       },
-      weekly: {
+      secondary: {
         usedPercent: 99.4,
         remainingPercent: 0.6,
         resetsAt: null,
+        windowDurationMins: 10080,
       },
     },
     ...overrides,
@@ -84,38 +86,60 @@ test('createProfileTooltip renders the empty-state copy', () => {
   assert.match(tooltip.value, /Refresh limits/)
 })
 
-test('createProfileTooltip omits 5h columns when all profiles lack 5h limits', () => {
+test('createProfileTooltip omits primary columns when all profiles lack a primary window', () => {
   const profile = makeProfile({
     rateLimits: {
-      fiveHour: null,
-      weekly: {
+      primary: null,
+      secondary: {
         usedPercent: 7,
         remainingPercent: 93,
         resetsAt: 1_784_495_529,
+        windowDurationMins: 10080,
       },
     },
   })
   const tooltip = createProfileTooltip(profile, [profile])
 
   assert.ok(!tooltip.value.includes('&nbsp;5h&nbsp;'))
-  assert.ok(tooltip.value.includes('&nbsp;Weekly&nbsp;'))
+  assert.ok(tooltip.value.includes('&nbsp;7d&nbsp;'))
   assert.ok(tooltip.value.includes('&nbsp;93%&nbsp;'))
   assert.match(tooltip.value, /\|---\|---\|---\|---:\|---\|---\|/)
 })
 
-test('createProfileTooltip omits plan and weekly columns when all profiles lack them', () => {
+test('createProfileTooltip derives the column header from the actual window duration', () => {
+  // A 30-day window is not "5h" or "Weekly" -- the header must reflect the
+  // real duration reported by the API instead of a stale hardcoded label.
+  const profile = makeProfile({
+    rateLimits: {
+      primary: {
+        usedPercent: 31,
+        remainingPercent: 69,
+        resetsAt: 1_788_524_905,
+        windowDurationMins: 43_200,
+      },
+      secondary: null,
+    },
+  })
+  const tooltip = createProfileTooltip(profile, [profile])
+
+  assert.ok(tooltip.value.includes('&nbsp;30d&nbsp;'))
+  assert.ok(!tooltip.value.includes('&nbsp;5h&nbsp;'))
+  assert.ok(!tooltip.value.includes('&nbsp;Weekly&nbsp;'))
+})
+
+test('createProfileTooltip omits plan and secondary columns when all profiles lack them', () => {
   const profile = makeProfile({
     planType: 'Unknown',
     rateLimits: {
-      fiveHour: null,
-      weekly: null,
+      primary: null,
+      secondary: null,
     },
   })
   const tooltip = createProfileTooltip(profile, [profile])
 
   assert.ok(!tooltip.value.includes('&nbsp;Plan&nbsp;'))
   assert.ok(!tooltip.value.includes('&nbsp;5h&nbsp;'))
-  assert.ok(!tooltip.value.includes('&nbsp;Weekly&nbsp;'))
+  assert.ok(!tooltip.value.includes('&nbsp;7d&nbsp;'))
   assert.ok(tooltip.value.includes('&nbsp;Profile&nbsp;'))
   assert.ok(tooltip.value.includes('&nbsp;Refresh&nbsp;'))
   assert.match(tooltip.value, /\|---\|---\|---\|/)

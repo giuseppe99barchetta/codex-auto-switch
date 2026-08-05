@@ -14,40 +14,36 @@ test('formatProfilePlanDisplay returns uppercase plan or unknown label', () => {
   assert.equal(formatProfilePlanDisplay('unknown', 'unknown'), 'unknown')
 })
 
-test('formatProfileRateLimitsDisplay renders remaining percentages', () => {
+test('formatProfileRateLimitsDisplay renders remaining percentages with duration-derived labels', () => {
   const rateLimits: ProfileRateLimits = {
-    fiveHour: {
+    primary: {
       usedPercent: 42.2,
       remainingPercent: 57.8,
       resetsAt: null,
+      windowDurationMins: 300,
     },
-    weekly: {
+    secondary: {
       usedPercent: 99.4,
       remainingPercent: 0.6,
       resetsAt: null,
+      windowDurationMins: 10080,
     },
   }
 
-  assert.equal(
-    formatProfileRateLimitsDisplay(rateLimits, {
-      unknown: 'Unknown',
-      fiveHour: '5h',
-      weekly: 'Weekly',
-    }),
-    '5h 58% • Weekly 1%',
-  )
+  assert.equal(formatProfileRateLimitsDisplay(rateLimits), '5h 58% • 7d 1%')
   assert.equal(formatProfileRateLimitsDisplay(null), null)
 })
 
 test('buildProfileMetaDisplay combines plan and limits labels', () => {
   assert.equal(
     buildProfileMetaDisplay('pro', {
-      fiveHour: {
+      primary: {
         usedPercent: 42.2,
         remainingPercent: 57.8,
         resetsAt: null,
+        windowDurationMins: 300,
       },
-      weekly: null,
+      secondary: null,
     }),
     'PRO • 5h 58%',
   )

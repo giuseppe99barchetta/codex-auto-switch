@@ -13,7 +13,17 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [1.4.2][] - 2026-08-05
+
+### Fixed
+
+* Usage columns no longer disappear from the profile tooltip
+  when OpenAI reports rate-limit windows with a length other than
+  the previously assumed fixed 5-hour/weekly pair.
+  The column header now reflects the actual window length
+  (e.g. `5h`, `7d`, `30d`) instead of a hardcoded label.
+
+[1.4.2]: https://github.com/WoozyMasta/codex-switch/compare/1.4.1...1.4.2
 
 ## [1.4.1][] - 2026-07-13
 

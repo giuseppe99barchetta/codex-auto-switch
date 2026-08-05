@@ -3,6 +3,7 @@ import { ProfileSummary, ResolvedCodexHome } from '../types'
 import { getProfilePlanDisplay } from './profile-display'
 import { formatProfileResetTime } from '../utils/profile-reset-time'
 import { formatProfileEmailLabel } from '../utils/profile-email'
+import { formatRateLimitWindowLabel } from '../utils/rate-limit-normalizer'
 import {
   buildProfileTooltipActionsFooter,
   buildProfileTooltipHomeSection,
@@ -48,10 +49,12 @@ export function createProfileTooltip(
       const planType = p.planType.trim()
       return planType && planType.toLowerCase() !== 'unknown'
     })
-    const includeFiveHour = profiles.some((p) =>
-      Boolean(p.rateLimits?.fiveHour),
-    )
-    const includeWeekly = profiles.some((p) => Boolean(p.rateLimits?.weekly))
+    const primaryWindow = profiles.find((p) => p.rateLimits?.primary)
+      ?.rateLimits?.primary
+    const secondaryWindow = profiles.find((p) => p.rateLimits?.secondary)
+      ?.rateLimits?.secondary
+    const includePrimary = Boolean(primaryWindow)
+    const includeSecondary = Boolean(secondaryWindow)
 
     const headers = [
       '',
@@ -62,16 +65,26 @@ export function createProfileTooltip(
       headers.push(padTableCell(escapeTableCell(vscode.l10n.t('Plan'))))
       separators.push('---')
     }
-    if (includeFiveHour) {
+    if (includePrimary) {
       headers.push(
-        padTableCell(escapeTableCell(vscode.l10n.t('5h'))),
+        padTableCell(
+          escapeTableCell(
+            formatRateLimitWindowLabel(primaryWindow?.windowDurationMins ?? 0),
+          ),
+        ),
         padTableCell(escapeTableCell(vscode.l10n.t('Reset'))),
       )
       separators.push('---:', '---')
     }
-    if (includeWeekly) {
+    if (includeSecondary) {
       headers.push(
-        padTableCell(escapeTableCell(vscode.l10n.t('Weekly'))),
+        padTableCell(
+          escapeTableCell(
+            formatRateLimitWindowLabel(
+              secondaryWindow?.windowDurationMins ?? 0,
+            ),
+          ),
+        ),
         padTableCell(escapeTableCell(vscode.l10n.t('Reset'))),
       )
       separators.push('---:', '---')
@@ -84,15 +97,17 @@ export function createProfileTooltip(
 
     for (const p of profiles) {
       const plan = escapeTableCell(getProfilePlanDisplay(p.planType))
-      const fiveHour = escapeTableCell(
-        formatRateLimitCell(p.rateLimits?.fiveHour),
+      const primary = escapeTableCell(
+        formatRateLimitCell(p.rateLimits?.primary),
       )
-      const fiveHourReset = escapeTableCell(
-        formatProfileResetTime(p.rateLimits?.fiveHour?.resetsAt) || '',
+      const primaryReset = escapeTableCell(
+        formatProfileResetTime(p.rateLimits?.primary?.resetsAt) || '',
       )
-      const weekly = escapeTableCell(formatRateLimitCell(p.rateLimits?.weekly))
-      const weeklyReset = escapeTableCell(
-        formatProfileResetTime(p.rateLimits?.weekly?.resetsAt) || '',
+      const secondary = escapeTableCell(
+        formatRateLimitCell(p.rateLimits?.secondary),
+      )
+      const secondaryReset = escapeTableCell(
+        formatProfileResetTime(p.rateLimits?.secondary?.resetsAt) || '',
       )
       const emailDisplay = formatProfileEmailLabel(
         p.email,
@@ -106,16 +121,16 @@ export function createProfileTooltip(
           profileId: p.id,
           name: p.name,
           plan,
-          fiveHour,
-          fiveHourReset,
-          weekly,
-          weeklyReset,
+          primary,
+          primaryReset,
+          secondary,
+          secondaryReset,
           refresh,
           email: emailDisplay,
           isActive,
           includePlan,
-          includeFiveHour,
-          includeWeekly,
+          includePrimary,
+          includeSecondary,
         }),
       )
     }

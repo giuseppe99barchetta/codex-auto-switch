@@ -1059,6 +1059,12 @@ async function queryRateLimitsViaTemporaryCodexHome(
         response,
         Math.floor(now() / 1000),
       )
+      if (rateLimits === null && response !== null && response !== undefined) {
+        debugLog(
+          'Rate limits response did not contain a recognizable primary/secondary window',
+          response,
+        )
+      }
     } finally {
       await client.dispose()
     }

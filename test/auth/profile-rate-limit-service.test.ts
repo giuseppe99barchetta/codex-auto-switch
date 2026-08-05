@@ -264,9 +264,9 @@ test('ProfileRateLimitService fetches, caches, and reuses rate limits', async ()
     [profile],
   )
 
-  assert.equal(first[0]?.rateLimits?.fiveHour?.usedPercent, 25)
-  assert.equal(first[0]?.rateLimits?.fiveHour?.remainingPercent, 75)
-  assert.equal(first[0]?.rateLimits?.weekly, null)
+  assert.equal(first[0]?.rateLimits?.primary?.usedPercent, 25)
+  assert.equal(first[0]?.rateLimits?.primary?.remainingPercent, 75)
+  assert.equal(first[0]?.rateLimits?.secondary, null)
   assert.deepEqual(second, first)
   assert.equal(
     harness.child.requests.filter((request) => request.method === 'initialize')
@@ -323,7 +323,7 @@ test('ProfileRateLimitService persists auth Codex rotated in the temp home', asy
     [profile],
   )
 
-  assert.equal(result[0]?.rateLimits?.fiveHour?.usedPercent, 25)
+  assert.equal(result[0]?.rateLimits?.primary?.usedPercent, 25)
   assert.ok(harness.reads.some((p) => path.basename(p) === 'auth.json'))
   assert.equal(harness.replaceCalls.length, 1)
   assert.equal(
@@ -386,7 +386,7 @@ test('ProfileRateLimitService deduplicates inflight rate-limit refreshes', async
 
   const [firstResult, secondResult] = await Promise.all([first, second])
   assert.deepEqual(firstResult, secondResult)
-  assert.equal(firstResult[0]?.rateLimits?.fiveHour?.usedPercent, 12)
+  assert.equal(firstResult[0]?.rateLimits?.primary?.usedPercent, 12)
 })
 
 test('ProfileRateLimitService cancels inflight work and removes temp auth cleanup fallback files', async () => {

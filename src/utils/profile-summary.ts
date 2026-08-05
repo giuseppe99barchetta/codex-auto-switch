@@ -48,7 +48,7 @@ function parseProfileTimestamp(value: unknown): string | null {
 /** Parses a rate limit window object with usage and reset time, or undefined if invalid. */
 function parseProfileRateLimitWindow(
   value: unknown,
-): ProfileRateLimits['fiveHour'] | undefined {
+): ProfileRateLimits['primary'] | undefined {
   if (value === null) {
     return null
   }
@@ -76,10 +76,28 @@ function parseProfileRateLimitWindow(
     return undefined
   }
 
-  return { usedPercent, remainingPercent, resetsAt: resetsAt ?? undefined }
+  // Files written before windowDurationMins was tracked won't have it;
+  // default to 0 so formatRateLimitWindowLabel renders no unit
+  // instead of the window being rejected outright.
+  const windowDurationMins = window.windowDurationMins
+  if (
+    windowDurationMins !== undefined &&
+    (typeof windowDurationMins !== 'number' ||
+      !Number.isFinite(windowDurationMins))
+  ) {
+    return undefined
+  }
+
+  return {
+    usedPercent,
+    remainingPercent,
+    resetsAt: resetsAt ?? undefined,
+    windowDurationMins:
+      typeof windowDurationMins === 'number' ? windowDurationMins : 0,
+  }
 }
 
-/** Parses profile rate limits with fiveHour and weekly windows, handling null/undefined states. */
+/** Parses profile rate limits with primary and secondary windows, handling null/undefined states. */
 function parseProfileRateLimits(
   value: unknown,
 ): ProfileRateLimits | null | undefined {
@@ -95,15 +113,25 @@ function parseProfileRateLimits(
     return undefined
   }
 
-  const fiveHour = parseProfileRateLimitWindow(rateLimits.fiveHour)
-  const weekly = parseProfileRateLimitWindow(rateLimits.weekly)
-  if (fiveHour === undefined || weekly === undefined) {
+  // profiles.json written before this fix used fiveHour/weekly keys.
+  // Fall back to them so upgrading doesn't drop already-synced profiles entirely
+  // (a failed rateLimits parse invalidates the whole profile row below)
+  // before the next refresh repopulates the new shape.
+  // An explicit primary/secondary key (including null) always wins over the legacy one.
+  const primaryValue =
+    'primary' in rateLimits ? rateLimits.primary : rateLimits.fiveHour
+  const secondaryValue =
+    'secondary' in rateLimits ? rateLimits.secondary : rateLimits.weekly
+
+  const primary = parseProfileRateLimitWindow(primaryValue)
+  const secondary = parseProfileRateLimitWindow(secondaryValue)
+  if (primary === undefined || secondary === undefined) {
     return undefined
   }
 
   return {
-    fiveHour,
-    weekly,
+    primary,
+    secondary,
   }
 }
 

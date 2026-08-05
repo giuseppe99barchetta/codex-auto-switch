@@ -34,14 +34,19 @@ export interface ProfileRateLimitWindow {
   remainingPercent: number
   /** Unix timestamp (ms) when the window resets, or null if unknown. */
   resetsAt?: number | null
+  /**
+   * Window length in minutes as reported by the API. Not assumed to be a
+   * fixed 300 (5h) or 10080 (weekly) -- OpenAI can and does change it.
+   */
+  windowDurationMins: number
 }
 
-/** Contains rate-limit windows for both 5-hour and weekly quotas. */
+/** Contains the API's own primary/secondary rate-limit windows. */
 export interface ProfileRateLimits {
-  /** 5-hour rolling window rate limit, or null if unavailable. */
-  fiveHour: ProfileRateLimitWindow | null
-  /** Weekly rolling window rate limit, or null if unavailable. */
-  weekly: ProfileRateLimitWindow | null
+  /** The API's "primary" window (usually the shorter one), or null if unavailable. */
+  primary: ProfileRateLimitWindow | null
+  /** The API's "secondary" window (usually the longer one), or null if unavailable. */
+  secondary: ProfileRateLimitWindow | null
 }
 
 /** Determines where secret profile data (tokens) are persisted. */

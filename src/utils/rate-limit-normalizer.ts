@@ -1,16 +1,7 @@
 import { ProfileRateLimitWindow, ProfileRateLimits } from '../types'
 
-/** Duration in minutes for the 5-hour rolling rate-limit window. */
-export const FIVE_HOUR_WINDOW_MINUTES = 5 * 60
-/** Duration in minutes for the weekly rolling rate-limit window. */
-export const WEEKLY_WINDOW_MINUTES = 7 * 24 * 60
 /** Key used to identify Codex-specific rate limits in the API response. */
 export const CODEX_LIMIT_ID = 'codex'
-
-interface NormalizedRateLimitWindow {
-  durationMins: number
-  rateLimit: ProfileRateLimitWindow
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -77,7 +68,7 @@ function readWindowResetTimestamp(
 function normalizeRateLimitWindow(
   window: unknown,
   nowSeconds: number,
-): NormalizedRateLimitWindow | null {
+): ProfileRateLimitWindow | null {
   if (!isRecord(window)) {
     return null
   }
@@ -87,32 +78,27 @@ function normalizeRateLimitWindow(
     return null
   }
 
-  const durationMins = readWindowDurationMins(window)
-  if (durationMins === null) {
+  const windowDurationMins = readWindowDurationMins(window)
+  if (windowDurationMins === null) {
     return null
   }
 
   const resetsAt = readWindowResetTimestamp(window, nowSeconds)
 
   return {
-    durationMins,
-    rateLimit: {
-      usedPercent,
-      remainingPercent: clampPercent(100 - usedPercent),
-      resetsAt,
-    },
+    usedPercent,
+    remainingPercent: clampPercent(100 - usedPercent),
+    resetsAt,
+    windowDurationMins,
   }
 }
 
-function findWindowByDuration(
-  windows: NormalizedRateLimitWindow[],
-  targetDurationMins: number,
-): NormalizedRateLimitWindow | null {
-  return (
-    windows.find((window) => window.durationMins === targetDurationMins) || null
-  )
-}
-
+/**
+ * Maps `primary`/`secondary` positionally, as the API itself names them,
+ * instead of matching against fixed duration constants -- OpenAI does not
+ * guarantee primary is 5h and secondary is weekly, and has changed window
+ * lengths before without renaming these fields.
+ */
 function normalizeRateLimitSnapshot(
   snapshot: unknown,
   nowSeconds: number,
@@ -121,30 +107,30 @@ function normalizeRateLimitSnapshot(
     return null
   }
 
-  const windows = [snapshot.primary, snapshot.secondary].filter(
-    (value): value is unknown => value !== null && value !== undefined,
-  )
-  const normalizedWindows = windows
-    .map((window) => normalizeRateLimitWindow(window, nowSeconds))
-    .filter((value): value is NormalizedRateLimitWindow => value !== null)
+  const primary = normalizeRateLimitWindow(snapshot.primary, nowSeconds)
+  const secondary = normalizeRateLimitWindow(snapshot.secondary, nowSeconds)
 
-  const fiveHourWindow = findWindowByDuration(
-    normalizedWindows,
-    FIVE_HOUR_WINDOW_MINUTES,
-  )
-  const weeklyWindow = findWindowByDuration(
-    normalizedWindows,
-    WEEKLY_WINDOW_MINUTES,
-  )
-
-  if (!fiveHourWindow && !weeklyWindow) {
+  if (!primary && !secondary) {
     return null
   }
 
-  return {
-    fiveHour: fiveHourWindow?.rateLimit ?? null,
-    weekly: weeklyWindow?.rateLimit ?? null,
+  return { primary, secondary }
+}
+
+/** Compact, language-neutral window-length label (e.g. "5h", "7d", "30d"). Avoids a
+ *  translated "5h"/"Weekly" that may now be wrong, and avoids new per-duration strings. */
+export function formatRateLimitWindowLabel(durationMins: number): string {
+  if (!Number.isFinite(durationMins) || durationMins <= 0) {
+    return ''
   }
+  if (durationMins < 60) {
+    return `${Math.round(durationMins)}m`
+  }
+  const hours = durationMins / 60
+  if (hours < 24) {
+    return `${Math.round(hours)}h`
+  }
+  return `${Math.round(hours / 24)}d`
 }
 
 function readRateLimitSnapshots(response: unknown): unknown[] {

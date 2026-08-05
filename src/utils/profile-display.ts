@@ -1,4 +1,5 @@
 import { ProfileRateLimits } from '../types'
+import { formatRateLimitWindowLabel } from './rate-limit-normalizer'
 
 const DISPLAY_SEPARATOR = ' • '
 
@@ -6,17 +7,11 @@ const DISPLAY_SEPARATOR = ' • '
 export interface ProfileDisplayLabels {
   /** Label for unknown/missing values. */
   unknown: string
-  /** Label for the 5-hour rate-limit window. */
-  fiveHour: string
-  /** Label for the weekly rate-limit window. */
-  weekly: string
 }
 
 /** Default labels for profile display in the VS Code UI. */
 export const DEFAULT_PROFILE_DISPLAY_LABELS: ProfileDisplayLabels = {
   unknown: 'Unknown',
-  fiveHour: '5h',
-  weekly: 'Weekly',
 }
 
 function formatPercent(value: number): string {
@@ -32,22 +27,21 @@ export function formatProfilePlanDisplay(
   return rawPlan === unknownLabel ? unknownLabel : rawPlan.toUpperCase()
 }
 
-/** Formats rate limits for display as a readable string (e.g., "5h 75% • Weekly 50%"), or null if none available. */
+/** Formats rate limits for display as a readable string (e.g., "5h 75% • 7d 50%"), or null if none available. */
 export function formatProfileRateLimitsDisplay(
   rateLimits?: ProfileRateLimits | null,
-  labels: ProfileDisplayLabels = DEFAULT_PROFILE_DISPLAY_LABELS,
 ): string | null {
   const parts: string[] = []
 
-  if (rateLimits?.fiveHour) {
+  if (rateLimits?.primary) {
     parts.push(
-      `${labels.fiveHour} ${formatPercent(rateLimits.fiveHour.remainingPercent)}`,
+      `${formatRateLimitWindowLabel(rateLimits.primary.windowDurationMins)} ${formatPercent(rateLimits.primary.remainingPercent)}`.trim(),
     )
   }
 
-  if (rateLimits?.weekly) {
+  if (rateLimits?.secondary) {
     parts.push(
-      `${labels.weekly} ${formatPercent(rateLimits.weekly.remainingPercent)}`,
+      `${formatRateLimitWindowLabel(rateLimits.secondary.windowDurationMins)} ${formatPercent(rateLimits.secondary.remainingPercent)}`.trim(),
     )
   }
 
@@ -61,7 +55,7 @@ export function buildProfileMetaDisplay(
   labels: ProfileDisplayLabels = DEFAULT_PROFILE_DISPLAY_LABELS,
 ): string {
   const parts = [formatProfilePlanDisplay(planType, labels.unknown)]
-  const limitsDisplay = formatProfileRateLimitsDisplay(rateLimits, labels)
+  const limitsDisplay = formatProfileRateLimitsDisplay(rateLimits)
 
   if (limitsDisplay) {
     parts.push(limitsDisplay)

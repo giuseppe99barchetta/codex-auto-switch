@@ -23,11 +23,7 @@ export function getProfilePlanDisplay(planType: string): string {
 export function formatProfileRateLimits(
   rateLimits?: ProfileRateLimits | null,
 ): string | null {
-  return formatProfileRateLimitsDisplay(rateLimits, {
-    unknown: vscode.l10n.t('Unknown'),
-    fiveHour: vscode.l10n.t('5h'),
-    weekly: vscode.l10n.t('Weekly'),
-  })
+  return formatProfileRateLimitsDisplay(rateLimits)
 }
 
 /**
@@ -42,7 +38,5 @@ export function buildProfileMetaDisplay(
 ): string {
   return buildProfileMetaDisplayText(planType, rateLimits, {
     unknown: vscode.l10n.t('Unknown'),
-    fiveHour: vscode.l10n.t('5h'),
-    weekly: vscode.l10n.t('Weekly'),
   })
 }

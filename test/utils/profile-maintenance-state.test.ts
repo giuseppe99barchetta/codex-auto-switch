@@ -20,15 +20,17 @@ function validState(): MaintenanceProfileState {
     nextRetryAt: null,
     consecutiveFailures: 0,
     rateLimits: {
-      fiveHour: {
+      primary: {
         usedPercent: 25,
         remainingPercent: 75,
         resetsAt: 1_781_910_000,
+        windowDurationMins: 300,
       },
-      weekly: {
+      secondary: {
         usedPercent: 50,
         remainingPercent: 50,
         resetsAt: 1_782_400_000,
+        windowDurationMins: 10080,
       },
     },
   }
@@ -92,7 +94,7 @@ test('parseMaintenanceProfileState ignores invalid error category and rate limit
   const parsed = parseMaintenanceProfileState({
     ...base,
     errorCategory: 'not-a-category',
-    rateLimits: { fiveHour: {}, weekly: undefined },
+    rateLimits: { primary: {}, secondary: undefined },
   })
   assert.equal(parsed?.errorCategory, undefined)
   assert.equal(parsed?.rateLimits, undefined)
@@ -103,24 +105,54 @@ test('parseMaintenanceProfileState normalizes partial rate-limit windows', () =>
   const parsed = parseMaintenanceProfileState({
     ...base,
     rateLimits: {
-      fiveHour: { usedPercent: 10, remainingPercent: 90 },
+      primary: { usedPercent: 10, remainingPercent: 90 },
+      secondary: null,
+    },
+  })
+  assert.deepEqual(parsed?.rateLimits, {
+    primary: {
+      usedPercent: 10,
+      remainingPercent: 90,
+      resetsAt: null,
+      windowDurationMins: 0,
+    },
+    secondary: null,
+  })
+
+  const onlySecondary = parseMaintenanceProfileState({
+    ...base,
+    rateLimits: {
+      secondary: { usedPercent: 5, remainingPercent: 95, resetsAt: 123 },
+    },
+  })
+  assert.deepEqual(onlySecondary?.rateLimits, {
+    primary: null,
+    secondary: {
+      usedPercent: 5,
+      remainingPercent: 95,
+      resetsAt: 123,
+      windowDurationMins: 0,
+    },
+  })
+})
+
+test('parseMaintenanceProfileState falls back to legacy fiveHour/weekly keys written before this fix', () => {
+  const base = validState() as unknown as Record<string, unknown>
+  const parsed = parseMaintenanceProfileState({
+    ...base,
+    rateLimits: {
+      fiveHour: { usedPercent: 10, remainingPercent: 90, resetsAt: 456 },
       weekly: null,
     },
   })
   assert.deepEqual(parsed?.rateLimits, {
-    fiveHour: { usedPercent: 10, remainingPercent: 90, resetsAt: null },
-    weekly: null,
-  })
-
-  const onlyWeekly = parseMaintenanceProfileState({
-    ...base,
-    rateLimits: {
-      weekly: { usedPercent: 5, remainingPercent: 95, resetsAt: 123 },
+    primary: {
+      usedPercent: 10,
+      remainingPercent: 90,
+      resetsAt: 456,
+      windowDurationMins: 0,
     },
-  })
-  assert.deepEqual(onlyWeekly?.rateLimits, {
-    fiveHour: null,
-    weekly: { usedPercent: 5, remainingPercent: 95, resetsAt: 123 },
+    secondary: null,
   })
 })
 
@@ -163,7 +195,7 @@ test('serializeMaintenanceProfileState emits only allowed fields', () => {
   assert.equal('rateLimits' in minimal, false)
 })
 
-test('serialize then parse round-trips a state', () => {
+test('serialize then parse round-trips a state, including windowDurationMins', () => {
   const state = validState()
   const roundTripped = parseMaintenanceProfileState(
     JSON.parse(JSON.stringify(serializeMaintenanceProfileState(state))),

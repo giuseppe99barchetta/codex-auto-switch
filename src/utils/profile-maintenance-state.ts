@@ -72,10 +72,14 @@ function parseRateLimitWindow(
     return undefined
   }
   const resetsAt = asNullableTimestamp(obj.resetsAt)
+  // Cache entries written before windowDurationMins was tracked won't have it;
+  // default to 0 rather than rejecting the cached window.
+  const windowDurationMins = asFiniteNumber(obj.windowDurationMins) ?? 0
   return {
     usedPercent,
     remainingPercent,
     resetsAt: resetsAt === undefined ? null : resetsAt,
+    windowDurationMins,
   }
 }
 
@@ -84,14 +88,18 @@ function parseRateLimits(value: unknown): ProfileRateLimits | undefined {
   if (!obj) {
     return undefined
   }
-  const fiveHour = parseRateLimitWindow(obj.fiveHour)
-  const weekly = parseRateLimitWindow(obj.weekly)
-  if (fiveHour === undefined && weekly === undefined) {
+  // Cache entries written before this fix used fiveHour/weekly keys;
+  // fall back to them so an upgrade doesn't discard a still-fresh cached entry.
+  const primaryValue = 'primary' in obj ? obj.primary : obj.fiveHour
+  const secondaryValue = 'secondary' in obj ? obj.secondary : obj.weekly
+  const primary = parseRateLimitWindow(primaryValue)
+  const secondary = parseRateLimitWindow(secondaryValue)
+  if (primary === undefined && secondary === undefined) {
     return undefined
   }
   return {
-    fiveHour: fiveHour ?? null,
-    weekly: weekly ?? null,
+    primary: primary ?? null,
+    secondary: secondary ?? null,
   }
 }
 
@@ -107,8 +115,9 @@ function isErrorCategory(value: unknown): value is MaintenanceErrorCategory {
 }
 
 /**
- * Returns the raw schema version of a parsed JSON object, or undefined when it
- * is absent/malformed. Used to avoid overwriting an unsupported future schema
+ * Returns the raw schema version of a parsed JSON object,
+ * or undefined when it is absent/malformed.
+ * Used to avoid overwriting an unsupported future schema
  * unless the current process owns the lease.
  */
 export function readMaintenanceSchemaVersion(

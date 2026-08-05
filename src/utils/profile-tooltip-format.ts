@@ -40,14 +40,14 @@ export interface BuildProfileTooltipRowInput {
   name: string
   /** Plan type (e.g. 'Pro', 'Free'). */
   plan: string
-  /** 5-hour rate limit usage. */
-  fiveHour: string
-  /** 5-hour rate limit reset time. */
-  fiveHourReset: string
-  /** Weekly rate limit usage. */
-  weekly: string
-  /** Weekly rate limit reset time. */
-  weeklyReset: string
+  /** Primary rate-limit window usage. */
+  primary: string
+  /** Primary rate-limit window reset time. */
+  primaryReset: string
+  /** Secondary rate-limit window usage. */
+  secondary: string
+  /** Secondary rate-limit window reset time. */
+  secondaryReset: string
   /** Last refresh time. */
   refresh: string
   /** Email address. */
@@ -56,10 +56,10 @@ export interface BuildProfileTooltipRowInput {
   isActive: boolean
   /** Whether to include the plan column. */
   includePlan: boolean
-  /** Whether to include the 5-hour rate-limit columns. */
-  includeFiveHour: boolean
-  /** Whether to include the weekly rate-limit columns. */
-  includeWeekly: boolean
+  /** Whether to include the primary rate-limit columns. */
+  includePrimary: boolean
+  /** Whether to include the secondary rate-limit columns. */
+  includeSecondary: boolean
 }
 
 /** Builds a markdown table row for a profile with clickable name linking to activation command. */
@@ -81,11 +81,14 @@ export function buildProfileTooltipRow(
   if (input.includePlan) {
     cells.push(padTableCell(input.plan))
   }
-  if (input.includeFiveHour) {
-    cells.push(padTableCell(input.fiveHour), padTableCell(input.fiveHourReset))
+  if (input.includePrimary) {
+    cells.push(padTableCell(input.primary), padTableCell(input.primaryReset))
   }
-  if (input.includeWeekly) {
-    cells.push(padTableCell(input.weekly), padTableCell(input.weeklyReset))
+  if (input.includeSecondary) {
+    cells.push(
+      padTableCell(input.secondary),
+      padTableCell(input.secondaryReset),
+    )
   }
   cells.push(padTableCell(input.refresh))
 
