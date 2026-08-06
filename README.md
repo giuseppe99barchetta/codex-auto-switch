@@ -239,3 +239,18 @@ where shared profile state is expected.
 Sync writes `auth.json` via a temp-file-and-replace flow
 to reduce partial write risk.
 The extension does not create rotated backup files like `auth.json.bak.*`.
+
+## Known Limitations
+
+### Plan Label Can Lag the Real Subscription
+
+The plan label shown per profile (for example `Plus`)
+is not fetched from a live API.
+It is read from the `chatgpt_plan_type` claim
+inside the current `id_token` in `auth.json`.
+Usage percentages and reset times come from a separate rate-limit call
+and stay accurate, but the plan label only updates when
+Codex CLI itself reissues the token, through `codex login` or a token refresh.
+Restarting the IDE or waiting for the background refresh
+does not force a new token, so the plan label
+can stay outdated until the next real login or token rotation for that account.
