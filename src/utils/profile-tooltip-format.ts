@@ -1,5 +1,6 @@
 import { ProfileRateLimitWindow } from '../types'
 import { escapeMarkdown } from './markdown'
+import { formatRateLimitWindowLabel } from './rate-limit-normalizer'
 
 /** Constructs a VS Code command URI with JSON-encoded arguments. */
 export function buildCommandUri(command: string, args: unknown[]): string {
@@ -16,15 +17,27 @@ export function escapeTableCell(text: string): string {
   return escapeMarkdown(text).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
 }
 
-/** Formats a rate limit window as a percentage string, or '-' if unavailable. */
+/**
+ * Formats a rate limit window as a percentage string, or '-' if unavailable.
+ * When `includeDuration` is true, appends the window's duration label (e.g.
+ * "58% (5h)") -- used when the column header can't state a single duration
+ * because profiles in that column disagree on window length.
+ */
 export function formatRateLimitCell(
   window: ProfileRateLimitWindow | null | undefined,
+  includeDuration = false,
 ): string {
   if (!window) {
     return '-'
   }
 
-  return `${Math.round(window.remainingPercent)}%`
+  const percent = `${Math.round(window.remainingPercent)}%`
+  if (!includeDuration) {
+    return percent
+  }
+
+  const durationLabel = formatRateLimitWindowLabel(window.windowDurationMins)
+  return durationLabel ? `${percent} (${durationLabel})` : percent
 }
 
 /** Adds non-breaking spaces around content for table cell padding. */

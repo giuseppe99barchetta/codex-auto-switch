@@ -41,6 +41,22 @@ test('profile tooltip formatting helpers format command URIs and cells', () => {
   assert.equal(padTableCell('ok'), '&nbsp;ok&nbsp;')
 })
 
+test('formatRateLimitCell includes the duration when requested', () => {
+  assert.equal(formatRateLimitCell(null, true), '-')
+  assert.equal(
+    formatRateLimitCell(
+      {
+        usedPercent: 42.2,
+        remainingPercent: 57.8,
+        resetsAt: null,
+        windowDurationMins: 300,
+      },
+      true,
+    ),
+    '58% (5h)',
+  )
+})
+
 test('profile tooltip formatting helpers build profile rows', () => {
   assert.equal(
     buildProfileTooltipRow({

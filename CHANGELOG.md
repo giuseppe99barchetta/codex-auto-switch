@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## [1.4.3][] - 2026-08-10
+
+### Fixed
+
+* The profile tooltip's rate-limit column header could show
+  the wrong window length when accounts had different rate limit windows
+  (e.g. one account on `5h`, another on `30d`).
+  The header now only shows a single duration when all accounts agree;
+  otherwise it reads `Limit` and each row shows its own duration
+  (e.g. `58% (5h)`).
+
+[1.4.3]: https://github.com/WoozyMasta/codex-switch/compare/1.4.2...1.4.3
+
 ## [1.4.2][] - 2026-08-05
 
 ### Fixed

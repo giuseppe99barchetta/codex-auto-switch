@@ -32,6 +32,7 @@
   "Profile name (for example \"work\" or \"personal\")": "配置文件名称（例如 \"work\" 或 \"personal\"）",
   "Profile": "配置文件",
   "Plan": "套餐",
+  "Limit": "限额",
   "Rename profile": "重命名配置文件",
   "Refresh limits": "刷新限制",
   "Reset": "重置",

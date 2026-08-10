@@ -127,6 +127,94 @@ test('createProfileTooltip derives the column header from the actual window dura
   assert.ok(!tooltip.value.includes('&nbsp;Weekly&nbsp;'))
 })
 
+test('createProfileTooltip falls back to a generic header when profiles disagree on primary window duration', () => {
+  // Account A has a 5h primary window, account B has a 30d primary window --
+  // showing either duration as the shared header would misrepresent the other.
+  const profileA = makeProfile({
+    id: '123e4567-e89b-12d3-a456-426614174001',
+    name: 'Account A',
+    rateLimits: {
+      primary: {
+        usedPercent: 42,
+        remainingPercent: 58,
+        resetsAt: null,
+        windowDurationMins: 300,
+      },
+      secondary: null,
+    },
+  })
+  const profileB = makeProfile({
+    id: '123e4567-e89b-12d3-a456-426614174002',
+    name: 'Account B',
+    rateLimits: {
+      primary: {
+        usedPercent: 30,
+        remainingPercent: 70,
+        resetsAt: null,
+        windowDurationMins: 43_200,
+      },
+      secondary: null,
+    },
+  })
+  const tooltip = createProfileTooltip(null, [profileA, profileB])
+
+  assert.ok(tooltip.value.includes('&nbsp;Limit&nbsp;'))
+  assert.ok(!tooltip.value.includes('&nbsp;5h&nbsp;'))
+  assert.ok(!tooltip.value.includes('&nbsp;30d&nbsp;'))
+  assert.ok(tooltip.value.includes(escapeTableCell('58% (5h)')))
+  assert.ok(tooltip.value.includes(escapeTableCell('70% (30d)')))
+})
+
+test('createProfileTooltip resolves primary and secondary columns independently', () => {
+  // Both profiles agree on the primary duration, so that column keeps a
+  // plain duration header; they disagree on secondary, so that one falls
+  // back to the generic label with per-cell durations.
+  const profileA = makeProfile({
+    id: '123e4567-e89b-12d3-a456-426614174003',
+    name: 'Account A',
+    rateLimits: {
+      primary: {
+        usedPercent: 42,
+        remainingPercent: 58,
+        resetsAt: null,
+        windowDurationMins: 300,
+      },
+      secondary: {
+        usedPercent: 7,
+        remainingPercent: 93,
+        resetsAt: null,
+        windowDurationMins: 10_080,
+      },
+    },
+  })
+  const profileB = makeProfile({
+    id: '123e4567-e89b-12d3-a456-426614174004',
+    name: 'Account B',
+    rateLimits: {
+      primary: {
+        usedPercent: 10,
+        remainingPercent: 90,
+        resetsAt: null,
+        windowDurationMins: 300,
+      },
+      secondary: {
+        usedPercent: 20,
+        remainingPercent: 80,
+        resetsAt: null,
+        windowDurationMins: 43_200,
+      },
+    },
+  })
+  const tooltip = createProfileTooltip(null, [profileA, profileB])
+
+  assert.ok(tooltip.value.includes('&nbsp;5h&nbsp;'))
+  assert.ok(tooltip.value.includes('&nbsp;Limit&nbsp;'))
+  assert.ok(!tooltip.value.includes('&nbsp;7d&nbsp;'))
+  assert.ok(!tooltip.value.includes('&nbsp;30d&nbsp;'))
+  assert.ok(tooltip.value.includes(escapeTableCell('93% (7d)')))
+  assert.ok(tooltip.value.includes(escapeTableCell('80% (30d)')))
+})
+
 test('createProfileTooltip omits plan and secondary columns when all profiles lack them', () => {
   const profile = makeProfile({
     planType: 'Unknown',
