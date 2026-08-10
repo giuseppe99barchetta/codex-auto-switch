@@ -16,6 +16,14 @@ function expectedDay(date: Date): string {
   }).format(date)
 }
 
+function expectedDate(date: Date, now: Date): string {
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  }).format(date)
+}
+
 test('formatProfileResetTime returns the time for the same local day', () => {
   const now = new Date(2026, 5, 19, 12, 0, 0)
   const reset = new Date(2026, 5, 19, 10, 30, 0)
@@ -34,6 +42,46 @@ test('formatProfileResetTime prefixes the weekday for a different local day', ()
     formatProfileResetTime(reset.getTime() / 1000, now),
     `${expectedDay(reset)} ${expectedTime(reset)}`,
   )
+})
+
+test('formatProfileResetTime keeps the weekday at the edge of the unambiguous window', () => {
+  const now = new Date(2026, 5, 19, 12, 0, 0)
+  const reset = new Date(2026, 5, 25, 10, 30, 0)
+
+  assert.equal(
+    formatProfileResetTime(reset.getTime() / 1000, now),
+    `${expectedDay(reset)} ${expectedTime(reset)}`,
+  )
+})
+
+test('formatProfileResetTime switches to a short date past the unambiguous window', () => {
+  const now = new Date(2026, 5, 19, 12, 0, 0)
+  const reset = new Date(2026, 5, 26, 10, 30, 0)
+
+  assert.equal(
+    formatProfileResetTime(reset.getTime() / 1000, now),
+    `${expectedDate(reset, now)} ${expectedTime(reset)}`,
+  )
+})
+
+test('formatProfileResetTime shows a date far in the future, e.g. a 30-day window', () => {
+  const now = new Date(2026, 5, 19, 12, 0, 0)
+  const reset = new Date(2026, 6, 19, 10, 30, 0)
+
+  const formatted = formatProfileResetTime(reset.getTime() / 1000, now)
+
+  assert.equal(formatted, `${expectedDate(reset, now)} ${expectedTime(reset)}`)
+  assert.doesNotMatch(formatted ?? '', /\d{4}/)
+})
+
+test('formatProfileResetTime includes the year when the reset crosses into a different year', () => {
+  const now = new Date(2026, 11, 20, 12, 0, 0)
+  const reset = new Date(2027, 0, 19, 10, 30, 0)
+
+  const formatted = formatProfileResetTime(reset.getTime() / 1000, now)
+
+  assert.equal(formatted, `${expectedDate(reset, now)} ${expectedTime(reset)}`)
+  assert.match(formatted ?? '', /2027/)
 })
 
 test('formatProfileResetTime rejects invalid timestamps', () => {

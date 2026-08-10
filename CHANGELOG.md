@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning][].
   The header now only shows a single duration when all accounts agree;
   otherwise it reads `Limit` and each row shows its own duration
   (e.g. `58% (5h)`).
+* The profile tooltip's reset time only ever showed a weekday
+  (e.g. `Mon 14:30`) for resets on a different day,
+  which doesn't say which week for a 30-day window.
+  Resets more than a week away now show a short date instead
+  (e.g. `19 Jul 14:30`).
 
 [1.4.3]: https://github.com/WoozyMasta/codex-switch/compare/1.4.2...1.4.3
 
