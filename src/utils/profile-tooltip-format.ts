@@ -36,8 +36,7 @@ export function formatRateLimitCell(
     return percent
   }
 
-  const durationLabel = formatRateLimitWindowLabel(window.windowDurationMins)
-  return durationLabel ? `${percent} (${durationLabel})` : percent
+  return `${percent} (${formatRateLimitWindowLabel(window.windowDurationMins)})`
 }
 
 /** Adds non-breaking spaces around content for table cell padding. */
