@@ -10,6 +10,12 @@ import {
   isHysteresisBlocked,
 } from '../../src/utils/auto-switch-state'
 
+const thresholds = {
+  fallbackPercent: 99,
+  fiveHourPercent: 95,
+  weeklyPercent: 98,
+}
+
 function profile(
   id: string,
   primaryUsed: number | null,
@@ -77,9 +83,23 @@ test('describeThresholdReason includes every triggering window', () => {
   assert.equal(describeThresholdReason(profile('a', 98, 50), 99), '')
 })
 
+test('describeThresholdReason respects dedicated 5h and weekly thresholds', () => {
+  assert.equal(
+    describeThresholdReason(profile('a', 95, 98), thresholds),
+    '5h 95% + weekly 98%',
+  )
+  assert.equal(describeThresholdReason(profile('a', 94, 97), thresholds), '')
+})
+
 test('getTriggeredResetAt returns earliest triggering reset', () => {
   assert.equal(getTriggeredResetAt(profile('a', 99, 100), 99), 2000)
   assert.equal(getTriggeredResetAt(profile('a', 98, 50), 99), undefined)
+})
+
+test('getTriggeredResetAt respects per-window thresholds', () => {
+  assert.equal(getTriggeredResetAt(profile('a', 95, 97), thresholds), 2000)
+  assert.equal(getTriggeredResetAt(profile('a', 94, 98), thresholds), 3000)
+  assert.equal(getTriggeredResetAt(profile('a', 94, 97), thresholds), undefined)
 })
 
 test('isHysteresisBlocked releases after reset or recovery', () => {
