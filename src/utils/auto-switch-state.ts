@@ -42,7 +42,8 @@ export function describeThresholdReason(
     .filter((window): window is ProfileRateLimitWindow => Boolean(window))
     .filter(
       (window) =>
-        window.usedPercent >= getAutoSwitchThresholdForWindow(window, thresholds),
+        window.usedPercent >=
+        getAutoSwitchThresholdForWindow(window, thresholds),
     )
 
   return windows
@@ -64,7 +65,8 @@ export function getTriggeredResetAt(
     .filter((window): window is ProfileRateLimitWindow => Boolean(window))
     .filter(
       (window) =>
-        window.usedPercent >= getAutoSwitchThresholdForWindow(window, thresholds),
+        window.usedPercent >=
+        getAutoSwitchThresholdForWindow(window, thresholds),
     )
     .map((window) => window.resetsAt)
     .filter((value): value is number => typeof value === 'number')
