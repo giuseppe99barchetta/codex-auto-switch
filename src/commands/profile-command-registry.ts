@@ -236,6 +236,25 @@ export function registerCommands(
     async () => runToggleLastProfileCommand(navigationCommandDeps),
   )
 
+  const toggleAutoSwitchCommand = vscode.commands.registerCommand(
+    'codex-switch.autoSwitch.toggle',
+    async () => {
+      const config = vscode.workspace.getConfiguration('codexSwitch')
+      const enabled = config.get<boolean>('autoSwitchOnRateLimit', true)
+      const nextEnabled = !enabled
+      await config.update(
+        'autoSwitchOnRateLimit',
+        nextEnabled,
+        vscode.ConfigurationTarget.Global,
+      )
+      vscode.window.showInformationMessage(
+        nextEnabled
+          ? 'Codex Switch automatic account switching enabled.'
+          : 'Codex Switch automatic account switching disabled.',
+      )
+    },
+  )
+
   const addFromCodexAuthFileCommand = vscode.commands.registerCommand(
     'codex-switch.profile.addFromCodexAuthFile',
     async (): Promise<boolean> => addCurrentAuthJsonAsProfile(promptDeps, true),
@@ -293,6 +312,7 @@ export function registerCommands(
   context.subscriptions.push(switchProfileCommand)
   context.subscriptions.push(activateProfileCommand)
   context.subscriptions.push(toggleLastProfileCommand)
+  context.subscriptions.push(toggleAutoSwitchCommand)
   context.subscriptions.push(manageProfilesCommand)
   context.subscriptions.push(addFromCodexAuthFileCommand)
   context.subscriptions.push(prepareForNewLoginChatCommand)
