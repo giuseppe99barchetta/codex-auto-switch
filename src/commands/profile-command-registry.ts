@@ -175,6 +175,10 @@ export function registerCommands(
         >('statusBarClickBehavior', 'cycle')
       return resolveStatusBarClickBehavior(raw)
     },
+    getConfirmManualSwitchDuringActiveChat: () =>
+      vscode.workspace
+        .getConfiguration('codexSwitch')
+        .get<boolean>('confirmManualSwitchDuringActiveChat', true),
   }
 
   const managementCommandDeps: ProfileManagementCommandDeps = {

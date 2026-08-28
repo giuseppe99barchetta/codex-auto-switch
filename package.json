@@ -159,6 +159,11 @@
           "default": false,
           "description": "%configuration.reloadWindowAfterProfileSwitch.description%"
         },
+        "codexSwitch.confirmManualSwitchDuringActiveChat": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.confirmManualSwitchDuringActiveChat.description%"
+        },
         "codexSwitch.codexCliPath": {
           "type": "string",
           "default": "",
