@@ -1,12 +1,12 @@
 export interface ManualSwitchGuardDeps {
   enabled: boolean
-  executeCommand: <T = unknown>(command: string, ...rest: unknown[]) => Promise<T>
+  executeCommand: (command: string, ...rest: any[]) => PromiseLike<unknown>
   showWarningMessage: (
     message: string,
     options: { modal: boolean },
     ...items: string[]
-  ) => Promise<string | undefined>
-  translate: (message: string, ...args: unknown[]) => string
+  ) => PromiseLike<string | undefined>
+  translate: (message: string, ...args: any[]) => string
 }
 
 const CHAT_REQUEST_IN_PROGRESS_CONTEXT_KEY = 'chatSessionRequestInProgress'
@@ -26,7 +26,7 @@ export async function confirmManualProfileSwitch(
   let requestInProgress = false
   try {
     requestInProgress = Boolean(
-      await deps.executeCommand<boolean>(
+      await deps.executeCommand(
         'getContextKeyValue',
         CHAT_REQUEST_IN_PROGRESS_CONTEXT_KEY,
       ),
