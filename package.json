@@ -47,180 +47,51 @@
     "vscode": "^1.105.1",
     "node": ">=24 <25"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other"],
   "icon": "resources/codex-switch.png",
-  "activationEvents": [
-    "onStartupFinished"
-  ],
+  "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "l10n": "./l10n",
   "contributes": {
     "commands": [
-      {
-        "command": "codex-switch.login",
-        "title": "%command.login.title%"
-      },
-      {
-        "command": "codex-switch.profile.manage",
-        "title": "%command.profile.manage.title%"
-      },
-      {
-        "command": "codex-switch.profile.login",
-        "title": "%command.profile.login.title%"
-      },
-      {
-        "command": "codex-switch.profile.switch",
-        "title": "%command.profile.switch.title%"
-      },
-      {
-        "command": "codex-switch.profile.toggleLast",
-        "title": "%command.profile.toggleLast.title%"
-      },
-      {
-        "command": "codex-switch.autoSwitch.toggle",
-        "title": "%command.autoSwitch.toggle.title%"
-      },
-      {
-        "command": "codex-switch.autoSwitch.applyPending",
-        "title": "%command.autoSwitch.applyPending.title%"
-      },
-      {
-        "command": "codex-switch.profile.addFromCodexAuthFile",
-        "title": "%command.profile.addFromCodexAuthFile.title%"
-      },
-      {
-        "command": "codex-switch.profile.prepareForNewLoginChat",
-        "title": "%command.profile.prepareForNewLoginChat.title%"
-      },
-      {
-        "command": "codex-switch.profile.addFromFile",
-        "title": "%command.profile.addFromFile.title%"
-      },
-      {
-        "command": "codex-switch.profile.exportSettings",
-        "title": "%command.profile.exportSettings.title%"
-      },
-      {
-        "command": "codex-switch.profile.importSettings",
-        "title": "%command.profile.importSettings.title%"
-      },
-      {
-        "command": "codex-switch.profile.rename",
-        "title": "%command.profile.rename.title%"
-      },
-      {
-        "command": "codex-switch.profile.delete",
-        "title": "%command.profile.delete.title%"
-      },
-      {
-        "command": "codex-switch.profile.syncFromDefaultHome",
-        "title": "%command.profile.syncFromDefaultHome.title%"
-      }
+      {"command":"codex-switch.login","title":"%command.login.title%"},
+      {"command":"codex-switch.profile.manage","title":"%command.profile.manage.title%"},
+      {"command":"codex-switch.profile.login","title":"%command.profile.login.title%"},
+      {"command":"codex-switch.profile.switch","title":"%command.profile.switch.title%"},
+      {"command":"codex-switch.profile.toggleLast","title":"%command.profile.toggleLast.title%"},
+      {"command":"codex-switch.autoSwitch.toggle","title":"%command.autoSwitch.toggle.title%"},
+      {"command":"codex-switch.autoSwitch.applyPending","title":"%command.autoSwitch.applyPending.title%"},
+      {"command":"codex-switch.profile.addFromCodexAuthFile","title":"%command.profile.addFromCodexAuthFile.title%"},
+      {"command":"codex-switch.profile.prepareForNewLoginChat","title":"%command.profile.prepareForNewLoginChat.title%"},
+      {"command":"codex-switch.profile.addFromFile","title":"%command.profile.addFromFile.title%"},
+      {"command":"codex-switch.profile.exportSettings","title":"%command.profile.exportSettings.title%"},
+      {"command":"codex-switch.profile.importSettings","title":"%command.profile.importSettings.title%"},
+      {"command":"codex-switch.profile.rename","title":"%command.profile.rename.title%"},
+      {"command":"codex-switch.profile.delete","title":"%command.profile.delete.title%"},
+      {"command":"codex-switch.profile.syncFromDefaultHome","title":"%command.profile.syncFromDefaultHome.title%"}
     ],
     "menus": {
       "statusBar/item/context": [
-        {
-          "command": "codex-switch.profile.manage",
-          "when": "statusBarItemId == codex-switch.profile",
-          "group": "navigation"
-        }
+        {"command":"codex-switch.profile.manage","when":"statusBarItemId == codex-switch.profile","group":"navigation"}
       ]
     },
     "configuration": {
       "title": "%configuration.title%",
       "properties": {
-        "codexSwitch.debugLogging": {
-          "type": "boolean",
-          "default": false,
-          "description": "%configuration.debugLogging.description%"
-        },
-        "codexSwitch.activeProfileScope": {
-          "type": "string",
-          "enum": [
-            "global",
-            "workspace"
-          ],
-          "default": "global",
-          "description": "%configuration.activeProfileScope.description%"
-        },
-        "codexSwitch.storageMode": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "secretStorage",
-            "remoteFiles"
-          ],
-          "default": "auto",
-          "description": "%configuration.storageMode.description%"
-        },
-        "codexSwitch.reloadWindowAfterProfileSwitch": {
-          "type": "boolean",
-          "default": false,
-          "description": "%configuration.reloadWindowAfterProfileSwitch.description%"
-        },
-        "codexSwitch.codexCliPath": {
-          "type": "string",
-          "default": "",
-          "description": "%configuration.codexCliPath.description%"
-        },
-        "codexSwitch.rateLimitAutoRefreshIntervalSeconds": {
-          "type": "number",
-          "default": 60,
-          "minimum": 0,
-          "maximum": 43200,
-          "description": "%configuration.rateLimitAutoRefreshIntervalSeconds.description%"
-        },
-        "codexSwitch.autoSwitchOnRateLimit": {
-          "type": "boolean",
-          "default": true,
-          "description": "%configuration.autoSwitchOnRateLimit.description%"
-        },
-        "codexSwitch.autoSwitchThresholdPercent": {
-          "type": "number",
-          "default": 99,
-          "minimum": 50,
-          "maximum": 100,
-          "description": "%configuration.autoSwitchThresholdPercent.description%"
-        },
-        "codexSwitch.autoSwitchDeferUntilSafe": {
-          "type": "boolean",
-          "default": true,
-          "description": "%configuration.autoSwitchDeferUntilSafe.description%"
-        },
-        "codexSwitch.autoSwitchCooldownSeconds": {
-          "type": "number",
-          "default": 30,
-          "minimum": 5,
-          "maximum": 3600,
-          "description": "%configuration.autoSwitchCooldownSeconds.description%"
-        },
-        "codexSwitch.statusBarClickBehavior": {
-          "type": "string",
-          "enum": [
-            "cycle",
-            "toggleLast",
-            "selector"
-          ],
-          "default": "cycle",
-          "description": "%configuration.statusBarClickBehavior.description%",
-          "enumDescriptions": [
-            "%configuration.statusBarClickBehavior.cycle%",
-            "%configuration.statusBarClickBehavior.toggleLast%",
-            "%configuration.statusBarClickBehavior.selector%"
-          ]
-        },
-        "codexSwitch.codexHome.enabled": {
-          "type": "boolean",
-          "default": false,
-          "description": "%configuration.codexHome.enabled.description%"
-        },
-        "codexSwitch.codexHome.inheritDefaultProfileWhenEmpty": {
-          "type": "boolean",
-          "default": true,
-          "description": "%configuration.codexHome.inheritDefaultProfileWhenEmpty.description%"
-        }
+        "codexSwitch.debugLogging": {"type":"boolean","default":false,"description":"%configuration.debugLogging.description%"},
+        "codexSwitch.activeProfileScope": {"type":"string","enum":["global","workspace"],"default":"global","description":"%configuration.activeProfileScope.description%"},
+        "codexSwitch.storageMode": {"type":"string","enum":["auto","secretStorage","remoteFiles"],"default":"auto","description":"%configuration.storageMode.description%"},
+        "codexSwitch.reloadWindowAfterProfileSwitch": {"type":"boolean","default":false,"description":"%configuration.reloadWindowAfterProfileSwitch.description%"},
+        "codexSwitch.codexCliPath": {"type":"string","default":"","description":"%configuration.codexCliPath.description%"},
+        "codexSwitch.rateLimitAutoRefreshIntervalSeconds": {"type":"number","default":60,"minimum":0,"maximum":43200,"description":"%configuration.rateLimitAutoRefreshIntervalSeconds.description%"},
+        "codexSwitch.autoSwitchOnRateLimit": {"type":"boolean","default":true,"description":"%configuration.autoSwitchOnRateLimit.description%"},
+        "codexSwitch.autoSwitchThresholdPercent": {"type":"number","default":99,"minimum":50,"maximum":100,"description":"%configuration.autoSwitchThresholdPercent.description%"},
+        "codexSwitch.autoSwitchRecoveryPercent": {"type":"number","default":90,"minimum":0,"maximum":99,"description":"%configuration.autoSwitchRecoveryPercent.description%"},
+        "codexSwitch.autoSwitchDeferUntilSafe": {"type":"boolean","default":true,"description":"%configuration.autoSwitchDeferUntilSafe.description%"},
+        "codexSwitch.autoSwitchCooldownSeconds": {"type":"number","default":30,"minimum":5,"maximum":3600,"description":"%configuration.autoSwitchCooldownSeconds.description%"},
+        "codexSwitch.statusBarClickBehavior": {"type":"string","enum":["cycle","toggleLast","selector"],"default":"cycle","description":"%configuration.statusBarClickBehavior.description%","enumDescriptions":["%configuration.statusBarClickBehavior.cycle%","%configuration.statusBarClickBehavior.toggleLast%","%configuration.statusBarClickBehavior.selector%"]},
+        "codexSwitch.codexHome.enabled": {"type":"boolean","default":false,"description":"%configuration.codexHome.enabled.description%"},
+        "codexSwitch.codexHome.inheritDefaultProfileWhenEmpty": {"type":"boolean","default":true,"description":"%configuration.codexHome.inheritDefaultProfileWhenEmpty.description%"}
       }
     }
   },
