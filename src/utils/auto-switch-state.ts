@@ -1,4 +1,8 @@
 import type { ProfileRateLimitWindow, ProfileSummary } from '../types'
+import {
+  getAutoSwitchThresholdForWindow,
+  type AutoSwitchThresholdInput,
+} from './auto-switch-policy'
 
 export interface PendingAutoSwitchState {
   sourceId: string
@@ -32,11 +36,15 @@ export function formatRateLimitWindowLabel(
 
 export function describeThresholdReason(
   profile: ProfileSummary,
-  thresholdPercent: number,
+  thresholds: AutoSwitchThresholdInput,
 ): string {
   const windows = [profile.rateLimits?.primary, profile.rateLimits?.secondary]
     .filter((window): window is ProfileRateLimitWindow => Boolean(window))
-    .filter((window) => window.usedPercent >= thresholdPercent)
+    .filter(
+      (window) =>
+        window.usedPercent >=
+        getAutoSwitchThresholdForWindow(window, thresholds),
+    )
 
   return windows
     .map(
@@ -48,14 +56,18 @@ export function describeThresholdReason(
 
 export function getTriggeredResetAt(
   profile: ProfileSummary,
-  thresholdPercent: number,
+  thresholds: AutoSwitchThresholdInput,
 ): number | undefined {
   const resetTimes = [
     profile.rateLimits?.primary,
     profile.rateLimits?.secondary,
   ]
     .filter((window): window is ProfileRateLimitWindow => Boolean(window))
-    .filter((window) => window.usedPercent >= thresholdPercent)
+    .filter(
+      (window) =>
+        window.usedPercent >=
+        getAutoSwitchThresholdForWindow(window, thresholds),
+    )
     .map((window) => window.resetsAt)
     .filter((value): value is number => typeof value === 'number')
 

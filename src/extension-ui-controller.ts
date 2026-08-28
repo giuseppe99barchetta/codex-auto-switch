@@ -16,7 +16,10 @@ import {
 import type { MaintenanceProfileState } from './utils/profile-maintenance-state'
 import {
   chooseAutoSwitchTarget,
+  minimumAutoSwitchThreshold,
   normalizeAutoSwitchThreshold,
+  normalizeAutoSwitchThresholds,
+  type AutoSwitchThresholds,
 } from './utils/auto-switch-policy'
 import {
   describeThresholdReason,
@@ -62,6 +65,19 @@ export function createExtensionUiController(
   )
   let pendingAutoSwitchNoticeShown = false
   let allAccountsExhaustedNoticeKey: string | null = null
+
+  const getAutoSwitchThresholds = (
+    config: vscode.WorkspaceConfiguration,
+  ): AutoSwitchThresholds => {
+    const fallbackPercent = normalizeAutoSwitchThreshold(
+      config.get<number>('autoSwitchThresholdPercent', 99),
+    )
+    return normalizeAutoSwitchThresholds({
+      fallbackPercent,
+      fiveHourPercent: config.get<number>('autoSwitch5hThresholdPercent', 95),
+      weeklyPercent: config.get<number>('autoSwitchWeeklyThresholdPercent', 98),
+    })
+  }
 
   const mapStateToRefreshStatus = (
     profileId: string,
@@ -255,7 +271,7 @@ export function createExtensionUiController(
   }
 
   const selectTarget = async (
-    threshold: number,
+    thresholds: AutoSwitchThresholds,
     recoveryPercent: number,
   ): Promise<{
     profiles: ProfileSummary[]
@@ -300,21 +316,26 @@ export function createExtensionUiController(
           Date.now(),
         ),
     )
-    const target = chooseAutoSwitchTarget(eligibleProfiles, activeId, threshold)
+    const target = chooseAutoSwitchTarget(
+      eligibleProfiles,
+      activeId,
+      thresholds,
+      Date.now(),
+    )
     return {
       profiles: profilesWithLimits,
       active,
       target,
-      reason: describeThresholdReason(active, threshold),
+      reason: describeThresholdReason(active, thresholds),
     }
   }
 
   const applyAutoSwitch = async (
     state: PendingAutoSwitchState,
-    threshold: number,
+    thresholds: AutoSwitchThresholds,
     recoveryPercent: number,
   ): Promise<boolean> => {
-    const selection = await selectTarget(threshold, recoveryPercent)
+    const selection = await selectTarget(thresholds, recoveryPercent)
     if (!selection || selection.active.id !== state.sourceId) {
       await clearPendingAutoSwitch('active profile changed')
       return false
@@ -333,10 +354,16 @@ export function createExtensionUiController(
     }
     const switched = await profileManager.setActiveProfileId(target.id)
     if (!switched) {
+      vscode.window.showWarningMessage(
+        `Codex Switch could not verify the auth file for ${target.name}; the extension host was not restarted.`,
+      )
       return false
     }
 
-    const blockedUntilResetAt = getTriggeredResetAt(selection.active, threshold)
+    const blockedUntilResetAt = getTriggeredResetAt(
+      selection.active,
+      thresholds,
+    )
     await persistHysteresis({
       profileId: selection.active.id,
       blockedUntilResetAt,
@@ -365,14 +392,12 @@ export function createExtensionUiController(
       return
     }
     const config = vscode.workspace.getConfiguration('codexSwitch')
-    const threshold = normalizeAutoSwitchThreshold(
-      config.get<number>('autoSwitchThresholdPercent', 99),
-    )
+    const thresholds = getAutoSwitchThresholds(config)
     const recoveryPercent = Math.min(
-      threshold - 1,
+      minimumAutoSwitchThreshold(thresholds) - 1,
       Math.max(0, config.get<number>('autoSwitchRecoveryPercent', 90)),
     )
-    await applyAutoSwitch(pendingAutoSwitch, threshold, recoveryPercent)
+    await applyAutoSwitch(pendingAutoSwitch, thresholds, recoveryPercent)
   }
 
   const queueAutoSwitch = async (
@@ -418,11 +443,9 @@ export function createExtensionUiController(
       return
     }
 
-    const threshold = normalizeAutoSwitchThreshold(
-      config.get<number>('autoSwitchThresholdPercent', 99),
-    )
+    const thresholds = getAutoSwitchThresholds(config)
     const recoveryPercent = Math.min(
-      threshold - 1,
+      minimumAutoSwitchThreshold(thresholds) - 1,
       Math.max(0, config.get<number>('autoSwitchRecoveryPercent', 90)),
     )
     const cooldownSeconds = Math.max(
@@ -433,7 +456,7 @@ export function createExtensionUiController(
       return
     }
 
-    const selection = await selectTarget(threshold, recoveryPercent)
+    const selection = await selectTarget(thresholds, recoveryPercent)
     if (!selection) {
       await clearPendingAutoSwitch('no active profile or insufficient profiles')
       return
@@ -468,7 +491,7 @@ export function createExtensionUiController(
         reason: selection.reason,
         createdAt: Date.now(),
       },
-      threshold,
+      thresholds,
       recoveryPercent,
     )
   }
@@ -536,6 +559,12 @@ export function createExtensionUiController(
       if (
         event.affectsConfiguration('codexSwitch.autoSwitchOnRateLimit') ||
         event.affectsConfiguration('codexSwitch.autoSwitchThresholdPercent') ||
+        event.affectsConfiguration(
+          'codexSwitch.autoSwitch5hThresholdPercent',
+        ) ||
+        event.affectsConfiguration(
+          'codexSwitch.autoSwitchWeeklyThresholdPercent',
+        ) ||
         event.affectsConfiguration('codexSwitch.autoSwitchRecoveryPercent') ||
         event.affectsConfiguration('codexSwitch.autoSwitchDeferUntilSafe') ||
         event.affectsConfiguration('codexSwitch.autoSwitchCooldownSeconds')

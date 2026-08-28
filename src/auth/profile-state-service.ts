@@ -24,6 +24,7 @@ const ACTIVE_PROFILE_KEY = 'codexSwitch.activeProfileId'
 const LAST_PROFILE_KEY = 'codexSwitch.lastProfileId'
 const OLD_ACTIVE_PROFILE_KEY = 'codexUsage.activeProfileId'
 const OLD_LAST_PROFILE_KEY = 'codexUsage.lastProfileId'
+const AUTH_SYNC_VERIFY_DELAYS_MS = [0, 50, 100, 200] as const
 
 /**
  * Dependencies for ProfileStateService.
@@ -177,6 +178,62 @@ export class ProfileStateService {
     return defaultProfileId
   }
 
+  private async waitForProfileAuthOnDisk(
+    profileId: string,
+    authData: AuthData,
+  ): Promise<boolean> {
+    const selectedProfile = await this.deps.getProfile(profileId)
+    if (!selectedProfile) {
+      return false
+    }
+
+    for (const delayMs of AUTH_SYNC_VERIFY_DELAYS_MS) {
+      if (delayMs > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
+      }
+      const liveAuth = await this.deps.loadLiveCodexAuthData().catch(() => null)
+      if (
+        liveAuth &&
+        matchesPreservationIdentityForProfile(
+          selectedProfile,
+          liveAuth,
+          authData,
+        )
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
+  private async syncAndVerifyProfileAuth(
+    profileId: string,
+    authData: AuthData,
+  ): Promise<boolean> {
+    this.deps.syncProfileAuthToCodexAuthFile(profileId, authData)
+    return this.waitForProfileAuthOnDisk(profileId, authData)
+  }
+
+  private async restoreAfterFailedSwitch(
+    previousProfileId: string | undefined,
+    previousLastProfileId: string | undefined,
+  ): Promise<void> {
+    await this.setActiveProfileIdInState(previousProfileId)
+    await this.setLastProfileId(previousLastProfileId)
+
+    if (!previousProfileId) {
+      if (this.deps.hasActiveCodexAuthFile()) {
+        this.deps.deleteActiveCodexAuthFile()
+      }
+      return
+    }
+
+    const previousAuth = await this.deps.loadAuthData(previousProfileId)
+    if (previousAuth) {
+      this.deps.syncProfileAuthToCodexAuthFile(previousProfileId, previousAuth)
+    }
+  }
+
   /**
    * Gets the ID of the currently active profile.
    * Resolves state from both current and legacy storage keys.
@@ -250,11 +307,14 @@ export class ProfileStateService {
   /**
    * Sets the currently active profile by ID.
    * Loads auth data, preserves previous auth, and syncs to the Codex auth file.
+   * The auth file is re-read with short retries before success is reported so
+   * callers never restart Codex against an unverified/stale auth.json.
    * @param profileId - The profile ID to activate, or undefined to deactivate all profiles.
-   * @returns A promise that resolves to true if successful, false if auth data could not be loaded.
+   * @returns A promise that resolves to true if successful, false if auth data could not be loaded or verified.
    */
   async setActiveProfileId(profileId: string | undefined): Promise<boolean> {
     const prev = await this.getActiveProfileId()
+    const previousLastProfileId = await this.getLastProfileId()
 
     let authData: AuthData | null = null
     if (profileId) {
@@ -282,13 +342,12 @@ export class ProfileStateService {
           )
         ) {
           if (shouldReplaceStoredProfileAuthWithLive(authData, liveAuth)) {
-            await this.deps.syncProfileAuthToCodexAuthFile(profileId, authData)
+            return this.syncAndVerifyProfileAuth(profileId, authData)
           }
           return true
         }
       }
-      this.deps.syncProfileAuthToCodexAuthFile(profileId, authData)
-      return true
+      return this.syncAndVerifyProfileAuth(profileId, authData)
     }
 
     if (prev && profileId && prev !== profileId) {
@@ -299,7 +358,11 @@ export class ProfileStateService {
     await this.setActiveProfileIdInState(profileId)
 
     if (profileId && authData) {
-      this.deps.syncProfileAuthToCodexAuthFile(profileId, authData)
+      const verified = await this.syncAndVerifyProfileAuth(profileId, authData)
+      if (!verified) {
+        await this.restoreAfterFailedSwitch(prev, previousLastProfileId)
+        return false
+      }
     }
     return true
   }

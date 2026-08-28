@@ -35,7 +35,6 @@
     "test:coverage": "npm run build:test && npm run test:coverage:run",
     "test:coverage:run": "node ./scripts/run-node-tests.mjs --coverage",
     "test:integration": "npm run build:test && npm run test:integration:run",
-    "test:integration:run": "vscode-test",
     "check": "npm run build && npm run build:test && npm run lint && npm run test:coverage:run",
     "check:release": "npm run check && npm run test:integration:run",
     "vscode:package": "vsce package",
@@ -183,6 +182,20 @@
           "minimum": 50,
           "maximum": 100,
           "description": "%configuration.autoSwitchThresholdPercent.description%"
+        },
+        "codexSwitch.autoSwitch5hThresholdPercent": {
+          "type": "number",
+          "default": 95,
+          "minimum": 50,
+          "maximum": 100,
+          "description": "%configuration.autoSwitch5hThresholdPercent.description%"
+        },
+        "codexSwitch.autoSwitchWeeklyThresholdPercent": {
+          "type": "number",
+          "default": 98,
+          "minimum": 50,
+          "maximum": 100,
+          "description": "%configuration.autoSwitchWeeklyThresholdPercent.description%"
         },
         "codexSwitch.autoSwitchRecoveryPercent": {
           "type": "number",
