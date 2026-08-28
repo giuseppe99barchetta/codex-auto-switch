@@ -12,14 +12,22 @@ and this project adheres to [Semantic Versioning][].
 * Automatic account switching when the active Codex profile reaches its
   configured usage threshold.
 * `codexSwitch.autoSwitchOnRateLimit`,
-  `codexSwitch.autoSwitchThresholdPercent`, and
+  `codexSwitch.autoSwitchThresholdPercent`,
+  `codexSwitch.autoSwitchDeferUntilSafe`, and
   `codexSwitch.autoSwitchCooldownSeconds` settings.
 * `Codex Switch: Toggle Automatic Account Switching` in the Command Palette.
+* `Codex Switch: Apply Pending Automatic Switch` for safely applying a queued
+  account change after the current Codex turn finishes.
 
 ### Changed
 
 * The fork's default background rate-limit refresh interval is 60 seconds,
   allowing automatic switching to react much sooner to an exhausted account.
+* The default automatic-switch threshold is 99% instead of 100%, giving the
+  extension a small margin before Codex rejects a new request.
+* Automatic switches are deferred by default instead of immediately restarting
+  the extension host. The pending target is shown in a warning with a
+  `Switch Now` action so an active response is not interrupted.
 
 ## [1.4.3][] - 2026-08-10
 
