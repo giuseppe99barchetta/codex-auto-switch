@@ -10,6 +10,7 @@
   "configuration.rateLimitAutoRefreshIntervalSeconds.description": "How often Codex account rate limits refresh automatically in the background. This also keeps saved Codex authentication current when Codex rotates it. Set to 0 for manual refresh only",
   "configuration.autoSwitchOnRateLimit.description": "Automatically switch to another saved Codex profile when the active account reaches its configured usage threshold",
   "configuration.autoSwitchThresholdPercent.description": "Usage percentage that triggers automatic account switching. A profile is considered exhausted when either reported rate-limit window reaches this value",
+  "configuration.autoSwitchRecoveryPercent.description": "Usage percentage below which a recently abandoned account becomes eligible again. It is also released after the triggering rate-limit window resets",
   "configuration.autoSwitchDeferUntilSafe.description": "Queue the automatic account switch instead of immediately restarting the extension host. Recommended to avoid interrupting an active Codex response; apply the pending switch after the current turn finishes",
   "configuration.autoSwitchCooldownSeconds.description": "Minimum time between automatic account switches, used to prevent rapid switching loops",
   "configuration.statusBarClickBehavior.description": "Behavior when clicking the status bar profile item",
