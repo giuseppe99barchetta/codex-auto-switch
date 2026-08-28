@@ -50,7 +50,10 @@ export function getTriggeredResetAt(
   profile: ProfileSummary,
   thresholdPercent: number,
 ): number | undefined {
-  const resetTimes = [profile.rateLimits?.primary, profile.rateLimits?.secondary]
+  const resetTimes = [
+    profile.rateLimits?.primary,
+    profile.rateLimits?.secondary,
+  ]
     .filter((window): window is ProfileRateLimitWindow => Boolean(window))
     .filter((window) => window.usedPercent >= thresholdPercent)
     .map((window) => window.resetsAt)
@@ -96,7 +99,9 @@ export function findNextResetAt(
     ])
     .filter((window): window is ProfileRateLimitWindow => Boolean(window))
     .map((window) => window.resetsAt)
-    .filter((value): value is number => typeof value === 'number' && value > now)
+    .filter(
+      (value): value is number => typeof value === 'number' && value > now,
+    )
 
   return resetTimes.length > 0 ? Math.min(...resetTimes) : undefined
 }
