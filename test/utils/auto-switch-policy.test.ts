@@ -81,6 +81,15 @@ test('chooseAutoSwitchTarget supports candidates with only one known window', ()
   assert.equal(chooseAutoSwitchTarget(profiles, 'a')?.id, 'b')
 })
 
+test('chooseAutoSwitchTarget supports secondary-only candidates', () => {
+  const profiles = [
+    profile('a', 100, 40),
+    profile('b', null, 10),
+    profile('c', 20, 20),
+  ]
+  assert.equal(chooseAutoSwitchTarget(profiles, 'a')?.id, 'b')
+})
+
 test('chooseAutoSwitchTarget skips exhausted and unknown candidates', () => {
   const unknown = profile('c', null, null)
   const profiles = [profile('a', 100, 40), profile('b', 100, 10), unknown]
