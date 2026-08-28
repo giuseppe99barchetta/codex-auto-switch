@@ -68,6 +68,7 @@ function makeService(overrides: Partial<Record<string, unknown>> = {}) {
   const syncs: string[] = []
   const resets: number[] = []
   const preserved: string[] = []
+  let liveAuth = makeAuth('live')
 
   const service = new ProfileStateService({
     getActiveCodexHome: () =>
@@ -108,7 +109,7 @@ function makeService(overrides: Partial<Record<string, unknown>> = {}) {
         ? makeProfile(profileId)
         : undefined,
     loadAuthData: async (profileId: string) => makeAuth(profileId),
-    loadLiveCodexAuthData: async () => makeAuth('live'),
+    loadLiveCodexAuthData: async () => liveAuth,
     inferActiveProfileIdFromAuthFile: async () => undefined,
     recoverMissingTokens: async () => null,
     preserveStoredProfileAuthFromLive: async (profileId: string) => {
@@ -116,6 +117,7 @@ function makeService(overrides: Partial<Record<string, unknown>> = {}) {
     },
     syncProfileAuthToCodexAuthFile: (profileId: string) => {
       syncs.push(profileId)
+      liveAuth = makeAuth(profileId)
     },
     resetSyncCache: () => {
       resets.push(1)
@@ -211,11 +213,16 @@ test('ProfileStateService prepareForNewLoginChat clears active state and auth fi
 test('ProfileStateService syncActiveProfileFromDefaultHome inherits the default profile when empty', async () => {
   const state = new MemoryBucket()
   const stateKeys = buildProfileStateKeys('home-1')
+  let liveAuth: AuthData | null = null
   const { service, sharedWrites } = makeService({
     globalState: state,
     workspaceState: new MemoryBucket(),
     isRemoteFilesMode: () => true,
     hasActiveCodexAuthFile: () => false,
+    loadLiveCodexAuthData: async () => liveAuth,
+    syncProfileAuthToCodexAuthFile: (profileId: string) => {
+      liveAuth = makeAuth(profileId)
+    },
   })
 
   assert.equal(
@@ -232,6 +239,7 @@ test('ProfileStateService toggleLastProfileId swaps active and last ids', async 
     [stateKeys.active]: 'active',
     [stateKeys.last]: 'last',
   })
+  let liveAuth: AuthData | null = makeAuth('active')
   const service = new ProfileStateService({
     getActiveCodexHome: () =>
       ({
@@ -263,24 +271,48 @@ test('ProfileStateService toggleLastProfileId swaps active and last ids', async 
         ? makeProfile(profileId)
         : undefined,
     loadAuthData: async (profileId: string) => makeAuth(profileId),
-    loadLiveCodexAuthData: async () => null,
+    loadLiveCodexAuthData: async () => liveAuth,
     inferActiveProfileIdFromAuthFile: async () => undefined,
     recoverMissingTokens: async () => null,
     preserveStoredProfileAuthFromLive: async () => undefined,
-    syncProfileAuthToCodexAuthFile: async () => undefined,
+    syncProfileAuthToCodexAuthFile: (profileId: string) => {
+      liveAuth = makeAuth(profileId)
+    },
     resetSyncCache: () => undefined,
     readSharedActiveProfile: () => undefined,
     readDefaultHomeSharedActiveProfileId: () => undefined,
     readDefaultHomeSharedLegacyActiveProfileId: () => undefined,
     writeSharedActiveProfile: () => undefined,
     deleteSharedActiveProfile: () => undefined,
-    hasActiveCodexAuthFile: () => false,
+    hasActiveCodexAuthFile: () => true,
     deleteActiveCodexAuthFile: () => undefined,
   } as any)
 
   assert.equal(await service.toggleLastProfileId(), 'last')
   assert.equal(state.get(stateKeys.active), 'last')
   assert.equal(state.get(stateKeys.last), 'active')
+})
+
+test('ProfileStateService refuses a switch when auth.json never verifies and restores state', async () => {
+  const stateKeys = buildProfileStateKeys('home-1')
+  const state = new MemoryBucket({
+    [stateKeys.active]: 'active',
+    [stateKeys.last]: 'last',
+  })
+  const syncs: string[] = []
+  const { service } = makeService({
+    globalState: state,
+    workspaceState: new MemoryBucket(),
+    loadLiveCodexAuthData: async () => makeAuth('wrong'),
+    syncProfileAuthToCodexAuthFile: (profileId: string) => {
+      syncs.push(profileId)
+    },
+  })
+
+  assert.equal(await service.setActiveProfileId('last'), false)
+  assert.equal(state.get(stateKeys.active), 'active')
+  assert.equal(state.get(stateKeys.last), 'last')
+  assert.deepEqual(syncs, ['last', 'active'])
 })
 
 test('ProfileStateService uses workspace scope from codexSwitch configuration', async () => {
