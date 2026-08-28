@@ -48,6 +48,16 @@ test('isProfileRateLimited triggers when either known window reaches threshold',
   assert.equal(isProfileRateLimited(undefined), false)
 })
 
+test('chooseAutoSwitchTarget requires an active profile id', () => {
+  const profiles = [profile('a', 100, 20), profile('b', 20, 20)]
+  assert.equal(chooseAutoSwitchTarget(profiles, undefined), undefined)
+})
+
+test('chooseAutoSwitchTarget returns undefined when active profile is missing', () => {
+  const profiles = [profile('a', 100, 20), profile('b', 20, 20)]
+  assert.equal(chooseAutoSwitchTarget(profiles, 'missing'), undefined)
+})
+
 test('chooseAutoSwitchTarget does nothing while active profile still has quota', () => {
   const profiles = [profile('a', 90, 80), profile('b', 10, 10)]
   assert.equal(chooseAutoSwitchTarget(profiles, 'a'), undefined)
@@ -60,6 +70,15 @@ test('chooseAutoSwitchTarget selects account with best bottleneck availability',
     profile('c', 30, 40),
   ]
   assert.equal(chooseAutoSwitchTarget(profiles, 'a')?.id, 'c')
+})
+
+test('chooseAutoSwitchTarget supports candidates with only one known window', () => {
+  const profiles = [
+    profile('a', 100, 40),
+    profile('b', 10, null),
+    profile('c', 20, 20),
+  ]
+  assert.equal(chooseAutoSwitchTarget(profiles, 'a')?.id, 'b')
 })
 
 test('chooseAutoSwitchTarget skips exhausted and unknown candidates', () => {
