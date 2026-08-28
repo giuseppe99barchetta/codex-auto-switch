@@ -36,6 +36,11 @@ export function debugLog(...args: unknown[]) {
   }
 }
 
+/** Logs auto-switch lifecycle events without authentication data or tokens. */
+export function autoSwitchLog(...args: unknown[]) {
+  console.log('[codex-switch:auto-switch]', ...args)
+}
+
 /** Logs a warning message to the console (prefixed with [codex-switch]). */
 export function warnLog(...args: unknown[]) {
   console.warn('[codex-switch]', ...args)
