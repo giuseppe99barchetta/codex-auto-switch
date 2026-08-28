@@ -37,6 +37,7 @@ function makeProfile(id: string): ProfileSummary {
     name: id,
     email: `${id}@example.com`,
     planType: 'pro',
+    subject: `${id}-subject`,
     createdAt: '2026-06-12T10:00:00.000Z',
     updatedAt: '2026-06-12T10:00:00.000Z',
   }
@@ -49,6 +50,7 @@ function makeAuth(id: string): AuthData {
     refreshToken: `${id}-refresh`,
     email: `${id}@example.com`,
     planType: 'pro',
+    subject: `${id}-subject`,
     authJson: {
       tokens: {
         id_token: `${id}-id`,
