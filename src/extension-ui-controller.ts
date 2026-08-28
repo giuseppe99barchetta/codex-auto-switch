@@ -252,7 +252,9 @@ export function createExtensionUiController(
       return
     }
 
-    const previous = profilesWithLimits.find((profile) => profile.id === activeId)
+    const previous = profilesWithLimits.find(
+      (profile) => profile.id === activeId,
+    )
     const switched = await profileManager.setActiveProfileId(target.id)
     if (!switched) {
       return
