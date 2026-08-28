@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - feat/auto-switch-rate-limit
   pull_request:
 
 permissions:
