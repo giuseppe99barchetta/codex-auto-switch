@@ -168,6 +168,12 @@ test('chooseAutoSwitchTarget skips exhausted and unknown candidates', () => {
   assert.equal(chooseAutoSwitchTarget(profiles, 'a'), undefined)
 })
 
+test('chooseAutoSwitchTarget skips candidates with entirely missing rate-limit data', () => {
+  const unknown = { ...profile('c', null, null), rateLimits: undefined }
+  const profiles = [profile('a', 100, 40), unknown]
+  assert.equal(chooseAutoSwitchTarget(profiles, 'a'), undefined)
+})
+
 test('chooseAutoSwitchTarget honors a lower configured numeric threshold', () => {
   const profiles = [profile('a', 95, 20), profile('b', 20, 20)]
   assert.equal(chooseAutoSwitchTarget(profiles, 'a', 95)?.id, 'b')
@@ -178,6 +184,17 @@ test('chooseAutoSwitchTarget favors an almost-reset account when the reset bonus
   const profiles = [
     profile('a', 95, null),
     profile('b', 94, null, { primaryReset: now + 2 * 60 * 1000 }),
+    profile('c', 75, null, { primaryReset: now + 5 * 60 * 60 * 1000 }),
+  ]
+
+  assert.equal(chooseAutoSwitchTarget(profiles, 'a', thresholds, now)?.id, 'b')
+})
+
+test('chooseAutoSwitchTarget gives the full reset bonus once a reset timestamp has passed', () => {
+  const now = 1_000_000
+  const profiles = [
+    profile('a', 95, null),
+    profile('b', 94, null, { primaryReset: now - 1 }),
     profile('c', 75, null, { primaryReset: now + 5 * 60 * 60 * 1000 }),
   ]
 
