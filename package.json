@@ -83,6 +83,10 @@
         "title": "%command.autoSwitch.toggle.title%"
       },
       {
+        "command": "codex-switch.autoSwitch.applyPending",
+        "title": "%command.autoSwitch.applyPending.title%"
+      },
+      {
         "command": "codex-switch.profile.addFromCodexAuthFile",
         "title": "%command.profile.addFromCodexAuthFile.title%"
       },
@@ -179,6 +183,11 @@
           "minimum": 50,
           "maximum": 100,
           "description": "%configuration.autoSwitchThresholdPercent.description%"
+        },
+        "codexSwitch.autoSwitchDeferUntilSafe": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.autoSwitchDeferUntilSafe.description%"
         },
         "codexSwitch.autoSwitchCooldownSeconds": {
           "type": "number",
