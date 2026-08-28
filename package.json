@@ -17,7 +17,8 @@
     "package.json",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "package.nls*.json"
   ],
   "scripts": {
     "vscode:prepublish": "npm run build:package",
@@ -56,66 +57,21 @@
   "l10n": "./l10n",
   "contributes": {
     "commands": [
-      {
-        "command": "codex-switch.login",
-        "title": "%command.login.title%"
-      },
-      {
-        "command": "codex-switch.profile.manage",
-        "title": "%command.profile.manage.title%"
-      },
-      {
-        "command": "codex-switch.profile.login",
-        "title": "%command.profile.login.title%"
-      },
-      {
-        "command": "codex-switch.profile.switch",
-        "title": "%command.profile.switch.title%"
-      },
-      {
-        "command": "codex-switch.profile.toggleLast",
-        "title": "%command.profile.toggleLast.title%"
-      },
-      {
-        "command": "codex-switch.autoSwitch.toggle",
-        "title": "%command.autoSwitch.toggle.title%"
-      },
-      {
-        "command": "codex-switch.autoSwitch.applyPending",
-        "title": "%command.autoSwitch.applyPending.title%"
-      },
-      {
-        "command": "codex-switch.profile.addFromCodexAuthFile",
-        "title": "%command.profile.addFromCodexAuthFile.title%"
-      },
-      {
-        "command": "codex-switch.profile.prepareForNewLoginChat",
-        "title": "%command.profile.prepareForNewLoginChat.title%"
-      },
-      {
-        "command": "codex-switch.profile.addFromFile",
-        "title": "%command.profile.addFromFile.title%"
-      },
-      {
-        "command": "codex-switch.profile.exportSettings",
-        "title": "%command.profile.exportSettings.title%"
-      },
-      {
-        "command": "codex-switch.profile.importSettings",
-        "title": "%command.profile.importSettings.title%"
-      },
-      {
-        "command": "codex-switch.profile.rename",
-        "title": "%command.profile.rename.title%"
-      },
-      {
-        "command": "codex-switch.profile.delete",
-        "title": "%command.profile.delete.title%"
-      },
-      {
-        "command": "codex-switch.profile.syncFromDefaultHome",
-        "title": "%command.profile.syncFromDefaultHome.title%"
-      }
+      { "command": "codex-switch.login", "title": "%command.login.title%" },
+      { "command": "codex-switch.profile.manage", "title": "%command.profile.manage.title%" },
+      { "command": "codex-switch.profile.login", "title": "%command.profile.login.title%" },
+      { "command": "codex-switch.profile.switch", "title": "%command.profile.switch.title%" },
+      { "command": "codex-switch.profile.toggleLast", "title": "%command.profile.toggleLast.title%" },
+      { "command": "codex-switch.autoSwitch.toggle", "title": "%command.autoSwitch.toggle.title%" },
+      { "command": "codex-switch.autoSwitch.applyPending", "title": "%command.autoSwitch.applyPending.title%" },
+      { "command": "codex-switch.profile.addFromCodexAuthFile", "title": "%command.profile.addFromCodexAuthFile.title%" },
+      { "command": "codex-switch.profile.prepareForNewLoginChat", "title": "%command.profile.prepareForNewLoginChat.title%" },
+      { "command": "codex-switch.profile.addFromFile", "title": "%command.profile.addFromFile.title%" },
+      { "command": "codex-switch.profile.exportSettings", "title": "%command.profile.exportSettings.title%" },
+      { "command": "codex-switch.profile.importSettings", "title": "%command.profile.importSettings.title%" },
+      { "command": "codex-switch.profile.rename", "title": "%command.profile.rename.title%" },
+      { "command": "codex-switch.profile.delete", "title": "%command.profile.delete.title%" },
+      { "command": "codex-switch.profile.syncFromDefaultHome", "title": "%command.profile.syncFromDefaultHome.title%" }
     ],
     "menus": {
       "statusBar/item/context": [
@@ -136,20 +92,13 @@
         },
         "codexSwitch.activeProfileScope": {
           "type": "string",
-          "enum": [
-            "global",
-            "workspace"
-          ],
+          "enum": ["global", "workspace"],
           "default": "global",
           "description": "%configuration.activeProfileScope.description%"
         },
         "codexSwitch.storageMode": {
           "type": "string",
-          "enum": [
-            "auto",
-            "secretStorage",
-            "remoteFiles"
-          ],
+          "enum": ["auto", "secretStorage", "remoteFiles"],
           "default": "auto",
           "description": "%configuration.storageMode.description%"
         },
@@ -217,11 +166,7 @@
         },
         "codexSwitch.statusBarClickBehavior": {
           "type": "string",
-          "enum": [
-            "cycle",
-            "toggleLast",
-            "selector"
-          ],
+          "enum": ["cycle", "toggleLast", "selector"],
           "default": "cycle",
           "description": "%configuration.statusBarClickBehavior.description%",
           "enumDescriptions": [
