@@ -176,6 +176,11 @@
           "default": true,
           "description": "%configuration.autoSwitchOnRateLimit.description%"
         },
+        "codexSwitch.autoSelectNearestResetOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.autoSelectNearestResetOnStartup.description%"
+        },
         "codexSwitch.autoSwitchThresholdPercent": {
           "type": "number",
           "default": 99,
