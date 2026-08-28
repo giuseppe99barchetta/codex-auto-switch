@@ -58,14 +58,11 @@ export function registerCommands(
     forceRateLimitRefresh?: boolean
   }) => Promise<void>,
 ) {
-  const maybeRestartAfterProfileSwitch = async () => {
-    const reloadAfterSwitch = vscode.workspace
-      .getConfiguration('codexSwitch')
-      .get<boolean>('reloadWindowAfterProfileSwitch', false)
-    if (!reloadAfterSwitch) {
-      return
-    }
-
+  // Codex keeps authentication in memory after startup. Writing a different
+  // auth.json is not enough to change the account used by the running Codex
+  // extension, so every successful profile/auth switch must restart the
+  // extension host. The helper falls back to a full window reload if needed.
+  const maybeRestartAfterProfileSwitch = async (): Promise<void> => {
     await restartExtensionHostOrReloadWindow()
   }
 
