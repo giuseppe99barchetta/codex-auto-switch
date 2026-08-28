@@ -99,9 +99,18 @@ test('normalizes and resolves dedicated thresholds by rate-limit window', () => 
 })
 
 test('isProfileRateLimited uses separate 5h and weekly thresholds', () => {
-  assert.equal(isProfileRateLimited(profile('a', 95, 20).rateLimits, thresholds), true)
-  assert.equal(isProfileRateLimited(profile('a', 20, 98).rateLimits, thresholds), true)
-  assert.equal(isProfileRateLimited(profile('a', 94, 97).rateLimits, thresholds), false)
+  assert.equal(
+    isProfileRateLimited(profile('a', 95, 20).rateLimits, thresholds),
+    true,
+  )
+  assert.equal(
+    isProfileRateLimited(profile('a', 20, 98).rateLimits, thresholds),
+    true,
+  )
+  assert.equal(
+    isProfileRateLimited(profile('a', 94, 97).rateLimits, thresholds),
+    false,
+  )
   assert.equal(isProfileRateLimited(undefined, thresholds), false)
 })
 

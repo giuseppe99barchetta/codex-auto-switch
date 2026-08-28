@@ -360,7 +360,10 @@ export function createExtensionUiController(
       return false
     }
 
-    const blockedUntilResetAt = getTriggeredResetAt(selection.active, thresholds)
+    const blockedUntilResetAt = getTriggeredResetAt(
+      selection.active,
+      thresholds,
+    )
     await persistHysteresis({
       profileId: selection.active.id,
       blockedUntilResetAt,
@@ -556,8 +559,12 @@ export function createExtensionUiController(
       if (
         event.affectsConfiguration('codexSwitch.autoSwitchOnRateLimit') ||
         event.affectsConfiguration('codexSwitch.autoSwitchThresholdPercent') ||
-        event.affectsConfiguration('codexSwitch.autoSwitch5hThresholdPercent') ||
-        event.affectsConfiguration('codexSwitch.autoSwitchWeeklyThresholdPercent') ||
+        event.affectsConfiguration(
+          'codexSwitch.autoSwitch5hThresholdPercent',
+        ) ||
+        event.affectsConfiguration(
+          'codexSwitch.autoSwitchWeeklyThresholdPercent',
+        ) ||
         event.affectsConfiguration('codexSwitch.autoSwitchRecoveryPercent') ||
         event.affectsConfiguration('codexSwitch.autoSwitchDeferUntilSafe') ||
         event.affectsConfiguration('codexSwitch.autoSwitchCooldownSeconds')

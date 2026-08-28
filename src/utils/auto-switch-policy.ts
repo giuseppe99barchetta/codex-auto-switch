@@ -72,8 +72,7 @@ export function isProfileRateLimited(
   return [rateLimits.primary, rateLimits.secondary].some(
     (window) =>
       window !== null &&
-      window.usedPercent >=
-        getAutoSwitchThresholdForWindow(window, thresholds),
+      window.usedPercent >= getAutoSwitchThresholdForWindow(window, thresholds),
   )
 }
 
