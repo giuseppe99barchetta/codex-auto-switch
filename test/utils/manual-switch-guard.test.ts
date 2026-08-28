@@ -7,9 +7,9 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
   const calls: string[] = []
   const deps = {
     enabled: true,
-    executeCommand: async <T = unknown>(command: string, ...args: unknown[]) => {
+    executeCommand: async (command: string, ...args: unknown[]) => {
       calls.push(`command:${command}:${String(args[0] ?? '')}`)
-      return false as T
+      return false
     },
     showWarningMessage: async (
       message: string,
@@ -50,7 +50,7 @@ test('manual switch guard tolerates unavailable chat activity probe', async () =
 
 test('manual switch guard blocks an active-chat switch when confirmation is dismissed', async () => {
   const deps = makeDeps({
-    executeCommand: async <T = unknown>() => true as T,
+    executeCommand: async () => true,
     showWarningMessage: async () => undefined,
   })
   assert.equal(await confirmManualProfileSwitch(deps), false)
@@ -58,7 +58,7 @@ test('manual switch guard blocks an active-chat switch when confirmation is dism
 
 test('manual switch guard allows an active-chat switch after explicit confirmation', async () => {
   const deps = makeDeps({
-    executeCommand: async <T = unknown>() => true as T,
+    executeCommand: async () => true,
     showWarningMessage: async (
       _message: string,
       _options: { modal: boolean },
