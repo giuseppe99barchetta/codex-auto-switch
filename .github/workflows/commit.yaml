@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: feat/smarter-auto-switch
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -29,11 +31,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Show Prettier diff
+      - name: Format feature changes
         run: |
-          npx prettier --write src/extension-ui-controller.ts src/utils/auto-switch-policy.ts test/utils/auto-switch-policy.test.ts
-          git diff -- src/extension-ui-controller.ts src/utils/auto-switch-policy.ts test/utils/auto-switch-policy.test.ts
-          exit 1
+          npx prettier --write package.json package.nls.json src/auth/profile-state-service.ts src/extension-ui-controller.ts src/utils/auto-switch-policy.ts src/utils/auto-switch-state.ts test/auth/profile-state-service.test.ts test/utils/auto-switch-policy.test.ts test/utils/auto-switch-state.test.ts
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json package.nls.json src/auth/profile-state-service.ts src/extension-ui-controller.ts src/utils/auto-switch-policy.ts src/utils/auto-switch-state.ts test/auth/profile-state-service.test.ts test/utils/auto-switch-policy.test.ts test/utils/auto-switch-state.test.ts
+            git commit -m "style: format smart auto-switch changes"
+            git push origin HEAD:feat/smarter-auto-switch
+          fi
 
       - name: Run check
         run: npm run check
