@@ -29,11 +29,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Format working tree
-        run: npm run format
-
-      - name: Show formatting diff
-        run: git diff -- src/extension-ui-controller.ts src/utils/auto-switch-state.ts test/utils/auto-switch-state.test.ts
-
       - name: Run check
         run: npm run check
