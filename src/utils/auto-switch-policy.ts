@@ -72,7 +72,8 @@ export function isProfileRateLimited(
   return [rateLimits.primary, rateLimits.secondary].some(
     (window) =>
       window !== null &&
-      window.usedPercent >= getAutoSwitchThresholdForWindow(window, thresholds),
+      window.usedPercent >=
+        getAutoSwitchThresholdForWindow(window, thresholds),
   )
 }
 
@@ -158,7 +159,5 @@ function resetSoonBonus(window: ProfileRateLimitWindow, now: number): number {
   if (remainingMs <= 0) {
     return RESET_BONUS_MAX_POINTS
   }
-  return (
-    (1 - remainingMs / RESET_BONUS_WINDOW_MS) * RESET_BONUS_MAX_POINTS
-  )
+  return (1 - remainingMs / RESET_BONUS_WINDOW_MS) * RESET_BONUS_MAX_POINTS
 }
