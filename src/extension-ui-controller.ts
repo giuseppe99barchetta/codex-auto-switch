@@ -14,6 +14,10 @@ import {
   type ProfileRefreshStatus,
 } from './utils/profile-refresh-status'
 import type { MaintenanceProfileState } from './utils/profile-maintenance-state'
+import {
+  chooseAutoSwitchTarget,
+  normalizeAutoSwitchThreshold,
+} from './utils/auto-switch-policy'
 
 /**
  * Controller for managing the extension's UI state and updates.
@@ -55,6 +59,8 @@ export function createExtensionUiController(
   let refreshProfileUiGeneration = 0
   let refreshProfileUiPromise: Promise<void> | null = null
   let pendingRefreshProfileUiOptions: RefreshProfileUiOptions | null = null
+  let autoSwitchPromise: Promise<void> | null = null
+  let lastAutoSwitchAt = 0
 
   const mapStateToRefreshStatus = (
     profileId: string,
@@ -204,9 +210,86 @@ export function createExtensionUiController(
     }
   }
 
-  // Re-render whenever the maintenance scheduler publishes a new result.
+  const maybeAutoSwitchProfile = async (): Promise<void> => {
+    const config = vscode.workspace.getConfiguration('codexSwitch')
+    if (!config.get<boolean>('autoSwitchOnRateLimit', true)) {
+      return
+    }
+
+    const threshold = normalizeAutoSwitchThreshold(
+      config.get<number>('autoSwitchThresholdPercent', 100),
+    )
+    const cooldownSeconds = Math.max(
+      5,
+      config.get<number>('autoSwitchCooldownSeconds', 30),
+    )
+    const now = Date.now()
+    if (now - lastAutoSwitchAt < cooldownSeconds * 1000) {
+      return
+    }
+
+    const profiles = await profileManager.listProfiles()
+    const activeId = await profileManager.getActiveProfileId()
+    if (!activeId || profiles.length < 2) {
+      return
+    }
+
+    const states = await loadMaintenanceStates(profiles)
+    const profilesWithLimits = profiles.map((profile) => {
+      const cached = profileRateLimitService.applyCachedRateLimits([profile])[0]
+      const stateLimits = states.get(profile.id)?.rateLimits
+      return cached.rateLimits === undefined && stateLimits
+        ? { ...cached, rateLimits: stateLimits }
+        : cached
+    })
+
+    const target = chooseAutoSwitchTarget(
+      profilesWithLimits,
+      activeId,
+      threshold,
+    )
+    if (!target) {
+      return
+    }
+
+    const previous = profilesWithLimits.find((profile) => profile.id === activeId)
+    const switched = await profileManager.setActiveProfileId(target.id)
+    if (!switched) {
+      return
+    }
+
+    lastAutoSwitchAt = Date.now()
+    await refreshUi()
+    vscode.window.showInformationMessage(
+      previous
+        ? `Codex account ${previous.name} reached its usage limit. Switched automatically to ${target.name}.`
+        : `Codex usage limit reached. Switched automatically to ${target.name}.`,
+    )
+
+    // Codex can keep authentication in its extension-host process. Restarting
+    // that host makes the newly written auth.json effective for the next turn;
+    // the helper falls back to a full window reload only when necessary.
+    await restartExtensionHostOrReloadWindow()
+  }
+
+  const requestAutoSwitch = (): void => {
+    if (autoSwitchPromise) {
+      return
+    }
+    autoSwitchPromise = maybeAutoSwitchProfile()
+      .catch((error) => {
+        errorLog('Error automatically switching Codex profile:', error)
+      })
+      .finally(() => {
+        autoSwitchPromise = null
+      })
+  }
+
+  // Re-render whenever the maintenance scheduler publishes a new result and
+  // evaluate whether the active account should fail over to another profile.
   profileMaintenanceService.setStateChangedListener(() => {
     void refreshUi()
+    requestAutoSwitch()
   })
   profileMaintenanceService.start()
 
@@ -245,6 +328,14 @@ export function createExtensionUiController(
         profileMaintenanceService.reschedule()
         void refreshUi()
       }
+
+      if (
+        event.affectsConfiguration('codexSwitch.autoSwitchOnRateLimit') ||
+        event.affectsConfiguration('codexSwitch.autoSwitchThresholdPercent') ||
+        event.affectsConfiguration('codexSwitch.autoSwitchCooldownSeconds')
+      ) {
+        requestAutoSwitch()
+      }
     }),
     new vscode.Disposable(() => {
       void profileMaintenanceService.dispose()
@@ -257,6 +348,7 @@ export function createExtensionUiController(
       try {
         await profileManager.reconcileActiveProfileWithCodexAuthFile()
         await refreshUi({ refreshActiveRateLimitOnly: true })
+        requestAutoSwitch()
       } catch (error) {
         errorLog('Error reconciling active profile with auth file:', error)
       }
