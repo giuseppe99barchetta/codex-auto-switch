@@ -84,10 +84,7 @@ test('getTriggeredResetAt returns earliest triggering reset', () => {
 
 test('isHysteresisBlocked releases after reset or recovery', () => {
   const state = { profileId: 'a', blockedUntilResetAt: 2000 }
-  assert.equal(
-    isHysteresisBlocked(profile('a', 95, 20), state, 90, 1000),
-    true,
-  )
+  assert.equal(isHysteresisBlocked(profile('a', 95, 20), state, 90, 1000), true)
   assert.equal(
     isHysteresisBlocked(profile('a', 90, 20), state, 90, 1000),
     false,
