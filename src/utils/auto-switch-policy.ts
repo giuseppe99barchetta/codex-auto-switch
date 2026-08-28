@@ -63,6 +63,7 @@ function hasKnownRateLimitWindow(
 /**
  * Rank by the tightest known remaining window. This avoids selecting an
  * account with a healthy short window but an almost exhausted long window.
+ * Callers only invoke this after confirming at least one window is known.
  */
 function availabilityScore(
   rateLimits: ProfileRateLimits | null | undefined,
@@ -71,5 +72,5 @@ function availabilityScore(
     .filter((window) => window !== null && window !== undefined)
     .map((window) => window.remainingPercent)
 
-  return remaining.length > 0 ? Math.min(...remaining) : -1
+  return Math.min(...remaining)
 }
