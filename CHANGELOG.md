@@ -5,13 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog][],
 and this project adheres to [Semantic Versioning][].
 
-<!--
 ## Unreleased
 
 ### Added
+
+* Automatic account switching when the active Codex profile reaches its
+  configured usage threshold.
+* `codexSwitch.autoSwitchOnRateLimit`,
+  `codexSwitch.autoSwitchThresholdPercent`, and
+  `codexSwitch.autoSwitchCooldownSeconds` settings.
+* `Codex Switch: Toggle Automatic Account Switching` in the Command Palette.
+
 ### Changed
-### Removed
--->
+
+* The fork's default background rate-limit refresh interval is 60 seconds,
+  allowing automatic switching to react much sooner to an exhausted account.
 
 ## [1.4.3][] - 2026-08-10
 
