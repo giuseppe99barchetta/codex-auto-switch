@@ -175,7 +175,7 @@
         },
         "codexSwitch.autoSwitchThresholdPercent": {
           "type": "number",
-          "default": 100,
+          "default": 99,
           "minimum": 50,
           "maximum": 100,
           "description": "%configuration.autoSwitchThresholdPercent.description%"
