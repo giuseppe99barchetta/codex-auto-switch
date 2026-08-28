@@ -107,6 +107,36 @@ export function chooseAutoSwitchTarget(
     .sort((a, b) => b.score - a.score)[0]?.profile
 }
 
+/**
+ * Select the usable account whose next known rate-limit reset happens first.
+ * This is useful at startup: consuming quota that is about to reset first
+ * minimizes quota that would otherwise expire unused.
+ */
+export function chooseStartupResetTarget(
+  profiles: readonly ProfileSummary[],
+  thresholds: AutoSwitchThresholdInput = 100,
+  now = Date.now(),
+): ProfileSummary | undefined {
+  return profiles
+    .filter((profile) => hasKnownRateLimitWindow(profile.rateLimits))
+    .filter((profile) => !isProfileRateLimited(profile.rateLimits, thresholds))
+    .map((profile) => ({
+      profile,
+      resetAt: nearestFutureResetAt(profile.rateLimits, now),
+      score: availabilityScore(profile.rateLimits, now),
+    }))
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        profile: ProfileSummary
+        resetAt: number
+        score: number
+      } => candidate.resetAt !== undefined,
+    )
+    .sort((a, b) => a.resetAt - b.resetAt || b.score - a.score)[0]?.profile
+}
+
 function normalizeThresholdInput(
   thresholds: AutoSwitchThresholdInput,
 ): AutoSwitchThresholds {
@@ -125,6 +155,19 @@ function hasKnownRateLimitWindow(
   rateLimits: ProfileRateLimits | null | undefined,
 ): boolean {
   return Boolean(rateLimits?.primary || rateLimits?.secondary)
+}
+
+function nearestFutureResetAt(
+  rateLimits: ProfileRateLimits | null | undefined,
+  now: number,
+): number | undefined {
+  const resetTimes = [rateLimits?.primary, rateLimits?.secondary]
+    .map((window) => window?.resetsAt)
+    .filter(
+      (resetAt): resetAt is number =>
+        typeof resetAt === 'number' && resetAt > now,
+    )
+  return resetTimes.length > 0 ? Math.min(...resetTimes) : undefined
 }
 
 /**
