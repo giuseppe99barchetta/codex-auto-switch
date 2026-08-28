@@ -47,7 +47,10 @@ export function chooseAutoSwitchTarget(
     .filter((profile) => profile.id !== activeProfileId)
     .filter((profile) => hasKnownRateLimitWindow(profile.rateLimits))
     .filter((profile) => !isProfileRateLimited(profile.rateLimits, threshold))
-    .map((profile) => ({ profile, score: availabilityScore(profile.rateLimits) }))
+    .map((profile) => ({
+      profile,
+      score: availabilityScore(profile.rateLimits),
+    }))
     .sort((a, b) => b.score - a.score)[0]?.profile
 }
 
