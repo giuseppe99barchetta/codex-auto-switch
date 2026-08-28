@@ -23,7 +23,7 @@ export async function confirmManualProfileSwitch(
     return true
   }
 
-  let requestInProgress = false
+  let requestInProgress: boolean
   try {
     requestInProgress = Boolean(
       await deps.executeCommand(
