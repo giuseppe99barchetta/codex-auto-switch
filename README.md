@@ -62,7 +62,7 @@ or continue without saving.
 ## Automatic Account Switching
 
 Codex Switch can automatically move to another saved profile when the active
-account reaches its usage limit.
+account reaches its configured usage threshold.
 
 Automatic switching is enabled by default and can be toggled at any time from
 the Command Palette with:
@@ -73,16 +73,39 @@ You can also configure it directly with:
 
 * `codexSwitch.autoSwitchOnRateLimit`
 * `codexSwitch.autoSwitchThresholdPercent`
+* `codexSwitch.autoSwitchDeferUntilSafe`
 * `codexSwitch.autoSwitchCooldownSeconds`
 
-The default threshold is `100`, so a switch happens when either reported
-rate-limit window reaches 100% usage.
-Candidates with unknown usage are skipped, and among the available profiles
-Codex Switch prefers the account with the strongest remaining quota.
+The default threshold is `99`, so a switch is prepared when either reported
+rate-limit window reaches 99% usage. Candidates with unknown usage are skipped,
+and among the available profiles Codex Switch prefers the account with the
+strongest remaining quota.
 
-After an automatic switch, the extension restarts the VS Code extension host
-so the Codex extension re-reads the newly written `auth.json`.
-If extension-host restart is unavailable, it falls back to a full window reload.
+### Safe Pending Switches
+
+`codexSwitch.autoSwitchDeferUntilSafe` is enabled by default.
+VS Code does not expose a reliable public API that tells another extension
+whether Codex is currently streaming or executing a turn. Restarting the
+extension host in the middle of a response can interrupt that response.
+
+For that reason, when the threshold is reached Codex Switch queues the selected
+replacement account instead of restarting immediately. A warning shows the
+pending target and provides a `Switch Now` action. Apply it after the current
+Codex turn finishes.
+
+You can also apply the queued switch from the Command Palette with:
+
+`Codex Switch: Apply Pending Automatic Switch`
+
+Once applied, Codex Switch writes the new account to `auth.json` and restarts
+the VS Code extension host so Codex re-reads the authentication. If
+extension-host restart is unavailable, it falls back to a full window reload.
+Existing Codex conversation history is not intentionally cleared by the switch;
+the safety deferral exists specifically to avoid interrupting the active turn.
+
+If you disable `codexSwitch.autoSwitchDeferUntilSafe`, threshold detection
+switches immediately and restarts the extension host as before. This is more
+automatic, but it can interrupt a response that happens to be in progress.
 
 ## Auth File Resolution
 
@@ -204,6 +227,7 @@ Main settings:
 * `codexSwitch.rateLimitAutoRefreshIntervalSeconds`
 * `codexSwitch.autoSwitchOnRateLimit`
 * `codexSwitch.autoSwitchThresholdPercent`
+* `codexSwitch.autoSwitchDeferUntilSafe`
 * `codexSwitch.autoSwitchCooldownSeconds`
 
 When `codexSwitch.reloadWindowAfterProfileSwitch` is enabled,
