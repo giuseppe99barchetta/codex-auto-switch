@@ -159,10 +159,29 @@
         },
         "codexSwitch.rateLimitAutoRefreshIntervalSeconds": {
           "type": "number",
-          "default": 900,
+          "default": 60,
           "minimum": 0,
           "maximum": 43200,
           "description": "%configuration.rateLimitAutoRefreshIntervalSeconds.description%"
+        },
+        "codexSwitch.autoSwitchOnRateLimit": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.autoSwitchOnRateLimit.description%"
+        },
+        "codexSwitch.autoSwitchThresholdPercent": {
+          "type": "number",
+          "default": 100,
+          "minimum": 50,
+          "maximum": 100,
+          "description": "%configuration.autoSwitchThresholdPercent.description%"
+        },
+        "codexSwitch.autoSwitchCooldownSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 3600,
+          "description": "%configuration.autoSwitchCooldownSeconds.description%"
         },
         "codexSwitch.statusBarClickBehavior": {
           "type": "string",
