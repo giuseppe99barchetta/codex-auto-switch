@@ -61,6 +61,9 @@ export function createExtensionUiController(
   let pendingRefreshProfileUiOptions: RefreshProfileUiOptions | null = null
   let autoSwitchPromise: Promise<void> | null = null
   let lastAutoSwitchAt = 0
+  let pendingAutoSwitchTargetId: string | null = null
+  let pendingAutoSwitchSourceId: string | null = null
+  let pendingAutoSwitchNoticeShown = false
 
   const mapStateToRefreshStatus = (
     profileId: string,
@@ -210,14 +213,96 @@ export function createExtensionUiController(
     }
   }
 
+  const clearPendingAutoSwitch = (): void => {
+    pendingAutoSwitchTargetId = null
+    pendingAutoSwitchSourceId = null
+    pendingAutoSwitchNoticeShown = false
+  }
+
+  const applyAutoSwitch = async (
+    sourceId: string,
+    targetId: string,
+  ): Promise<boolean> => {
+    const profiles = await profileManager.listProfiles()
+    const activeId = await profileManager.getActiveProfileId()
+    if (activeId !== sourceId) {
+      clearPendingAutoSwitch()
+      return false
+    }
+
+    const previous = profiles.find((profile) => profile.id === sourceId)
+    const target = profiles.find((profile) => profile.id === targetId)
+    if (!target) {
+      clearPendingAutoSwitch()
+      return false
+    }
+
+    const switched = await profileManager.setActiveProfileId(target.id)
+    if (!switched) {
+      return false
+    }
+
+    clearPendingAutoSwitch()
+    lastAutoSwitchAt = Date.now()
+    await refreshUi()
+    vscode.window.showInformationMessage(
+      previous
+        ? `Codex account ${previous.name} reached its usage threshold. Switched automatically to ${target.name}.`
+        : `Codex usage threshold reached. Switched automatically to ${target.name}.`,
+    )
+
+    // Codex can keep authentication in its extension-host process. Restarting
+    // that host makes the newly written auth.json effective for the next turn;
+    // the helper falls back to a full window reload only when necessary.
+    await restartExtensionHostOrReloadWindow()
+    return true
+  }
+
+  const applyPendingAutoSwitch = async (): Promise<void> => {
+    if (!pendingAutoSwitchSourceId || !pendingAutoSwitchTargetId) {
+      vscode.window.showInformationMessage(
+        'Codex Switch has no pending automatic account switch.',
+      )
+      return
+    }
+
+    await applyAutoSwitch(
+      pendingAutoSwitchSourceId,
+      pendingAutoSwitchTargetId,
+    )
+  }
+
+  const queueAutoSwitch = async (
+    source: ProfileSummary | undefined,
+    target: ProfileSummary,
+  ): Promise<void> => {
+    pendingAutoSwitchSourceId = source?.id ?? null
+    pendingAutoSwitchTargetId = target.id
+
+    if (pendingAutoSwitchNoticeShown) {
+      return
+    }
+    pendingAutoSwitchNoticeShown = true
+
+    const sourceName = source?.name ?? 'Current Codex account'
+    const action = await vscode.window.showWarningMessage(
+      `${sourceName} reached the automatic switch threshold. A switch to ${target.name} is pending so an active Codex response is not interrupted. Apply it after the current turn finishes.`,
+      'Switch Now',
+    )
+    if (action === 'Switch Now') {
+      await applyPendingAutoSwitch()
+    }
+  }
+
   const maybeAutoSwitchProfile = async (): Promise<void> => {
     const config = vscode.workspace.getConfiguration('codexSwitch')
     if (!config.get<boolean>('autoSwitchOnRateLimit', true)) {
+      clearPendingAutoSwitch()
       return
     }
 
     const threshold = normalizeAutoSwitchThreshold(
-      config.get<number>('autoSwitchThresholdPercent', 100),
+      config.get<number>('autoSwitchThresholdPercent', 99),
     )
     const cooldownSeconds = Math.max(
       5,
@@ -231,6 +316,7 @@ export function createExtensionUiController(
     const profiles = await profileManager.listProfiles()
     const activeId = await profileManager.getActiveProfileId()
     if (!activeId || profiles.length < 2) {
+      clearPendingAutoSwitch()
       return
     }
 
@@ -249,29 +335,20 @@ export function createExtensionUiController(
       threshold,
     )
     if (!target) {
+      clearPendingAutoSwitch()
       return
     }
 
     const previous = profilesWithLimits.find(
       (profile) => profile.id === activeId,
     )
-    const switched = await profileManager.setActiveProfileId(target.id)
-    if (!switched) {
+    const deferUntilSafe = config.get<boolean>('autoSwitchDeferUntilSafe', true)
+    if (deferUntilSafe) {
+      await queueAutoSwitch(previous, target)
       return
     }
 
-    lastAutoSwitchAt = Date.now()
-    await refreshUi()
-    vscode.window.showInformationMessage(
-      previous
-        ? `Codex account ${previous.name} reached its usage limit. Switched automatically to ${target.name}.`
-        : `Codex usage limit reached. Switched automatically to ${target.name}.`,
-    )
-
-    // Codex can keep authentication in its extension-host process. Restarting
-    // that host makes the newly written auth.json effective for the next turn;
-    // the helper falls back to a full window reload only when necessary.
-    await restartExtensionHostOrReloadWindow()
+    await applyAutoSwitch(activeId, target.id)
   }
 
   const requestAutoSwitch = (): void => {
@@ -287,6 +364,11 @@ export function createExtensionUiController(
       })
   }
 
+  const applyPendingAutoSwitchCommand = vscode.commands.registerCommand(
+    'codex-switch.autoSwitch.applyPending',
+    applyPendingAutoSwitch,
+  )
+
   // Re-render whenever the maintenance scheduler publishes a new result and
   // evaluate whether the active account should fail over to another profile.
   profileMaintenanceService.setStateChangedListener(() => {
@@ -296,6 +378,7 @@ export function createExtensionUiController(
   profileMaintenanceService.start()
 
   context.subscriptions.push(
+    applyPendingAutoSwitchCommand,
     vscode.window.onDidChangeWindowState((state) => {
       if (!state.focused) {
         return
@@ -334,6 +417,7 @@ export function createExtensionUiController(
       if (
         event.affectsConfiguration('codexSwitch.autoSwitchOnRateLimit') ||
         event.affectsConfiguration('codexSwitch.autoSwitchThresholdPercent') ||
+        event.affectsConfiguration('codexSwitch.autoSwitchDeferUntilSafe') ||
         event.affectsConfiguration('codexSwitch.autoSwitchCooldownSeconds')
       ) {
         requestAutoSwitch()
