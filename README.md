@@ -59,6 +59,31 @@ Before switching away from an unsaved live account,
 Codex Switch asks whether to cancel, save the profile and continue,
 or continue without saving.
 
+## Automatic Account Switching
+
+Codex Switch can automatically move to another saved profile when the active
+account reaches its usage limit.
+
+Automatic switching is enabled by default and can be toggled at any time from
+the Command Palette with:
+
+`Codex Switch: Toggle Automatic Account Switching`
+
+You can also configure it directly with:
+
+* `codexSwitch.autoSwitchOnRateLimit`
+* `codexSwitch.autoSwitchThresholdPercent`
+* `codexSwitch.autoSwitchCooldownSeconds`
+
+The default threshold is `100`, so a switch happens when either reported
+rate-limit window reaches 100% usage.
+Candidates with unknown usage are skipped, and among the available profiles
+Codex Switch prefers the account with the strongest remaining quota.
+
+After an automatic switch, the extension restarts the VS Code extension host
+so the Codex extension re-reads the newly written `auth.json`.
+If extension-host restart is unavailable, it falls back to a full window reload.
+
 ## Auth File Resolution
 
 By default, auth is resolved as `<CODEX_HOME>/auth.json`.
@@ -177,6 +202,9 @@ Main settings:
 * `codexSwitch.codexHome.enabled`
 * `codexSwitch.codexHome.inheritDefaultProfileWhenEmpty`
 * `codexSwitch.rateLimitAutoRefreshIntervalSeconds`
+* `codexSwitch.autoSwitchOnRateLimit`
+* `codexSwitch.autoSwitchThresholdPercent`
+* `codexSwitch.autoSwitchCooldownSeconds`
 
 When `codexSwitch.reloadWindowAfterProfileSwitch` is enabled,
 the extension tries to restart only the extension host
@@ -188,7 +216,7 @@ If extension-host restart is unavailable, it falls back to full window reload.
 
 `codexSwitch.rateLimitAutoRefreshIntervalSeconds` controls how often saved
 Codex account limits refresh in the background.
-The default is 15 minutes (`900`); the enabled range is 30 seconds
+The default is 60 seconds; the enabled range is 30 seconds
 through 12 hours (`43200`), and `0` disables automatic refresh
 while keeping the manual *Refresh limits* action.
 
