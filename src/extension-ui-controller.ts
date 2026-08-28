@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import type { ExtensionServices } from './extension-services'
 import type { ProfileSummary, ResolvedCodexHome } from './types'
-import { errorLog } from './utils/log'
+import { autoSwitchLog, errorLog } from './utils/log'
 import {
   mergeRefreshOptions,
   type RefreshProfileUiOptions,
@@ -18,32 +18,25 @@ import {
   chooseAutoSwitchTarget,
   normalizeAutoSwitchThreshold,
 } from './utils/auto-switch-policy'
+import {
+  describeThresholdReason,
+  findNextResetAt,
+  getTriggeredResetAt,
+  isHysteresisBlocked,
+  type AutoSwitchHysteresisState,
+  type PendingAutoSwitchState,
+} from './utils/auto-switch-state'
 
-/**
- * Controller for managing the extension's UI state and updates.
- */
+const PENDING_AUTO_SWITCH_KEY = 'codexSwitch.pendingAutoSwitch.v1'
+const AUTO_SWITCH_HYSTERESIS_KEY = 'codexSwitch.autoSwitchHysteresis.v1'
+
+/** Controller for managing the extension's UI state and updates. */
 export interface ExtensionUiController {
-  /**
-   * Refreshes the UI to reflect current profile and state.
-   * @param options - Optional options controlling what to refresh.
-   * @returns A promise that resolves when the UI refresh completes.
-   */
   refreshUi(options?: RefreshProfileUiOptions): Promise<void>
-  /**
-   * Reconciles the stored profile state with Codex auth and refreshes the UI.
-   * Called on extension startup to handle external auth changes.
-   * @returns A promise that resolves when reconciliation and refresh complete.
-   */
   reconcileAndRefresh(): Promise<void>
 }
 
-/**
- * Creates a UI controller for managing the extension's UI state.
- * Handles status bar updates, profile switching, and rate limit display.
- * @param context - The extension context from VS Code.
- * @param services - The initialized extension services.
- * @returns A controller for managing extension UI updates.
- */
+/** Creates a UI controller for profile state, switching, and usage display. */
 export function createExtensionUiController(
   context: vscode.ExtensionContext,
   services: ExtensionServices,
@@ -61,9 +54,14 @@ export function createExtensionUiController(
   let pendingRefreshProfileUiOptions: RefreshProfileUiOptions | null = null
   let autoSwitchPromise: Promise<void> | null = null
   let lastAutoSwitchAt = 0
-  let pendingAutoSwitchTargetId: string | null = null
-  let pendingAutoSwitchSourceId: string | null = null
+  let pendingAutoSwitch = context.globalState.get<PendingAutoSwitchState>(
+    PENDING_AUTO_SWITCH_KEY,
+  )
+  let hysteresisState = context.globalState.get<AutoSwitchHysteresisState>(
+    AUTO_SWITCH_HYSTERESIS_KEY,
+  )
   let pendingAutoSwitchNoticeShown = false
+  let allAccountsExhaustedNoticeKey: string | null = null
 
   const mapStateToRefreshStatus = (
     profileId: string,
@@ -91,6 +89,19 @@ export function createExtensionUiController(
     return new Map(entries)
   }
 
+  const applyRateLimitState = async (
+    profiles: ProfileSummary[],
+  ): Promise<ProfileSummary[]> => {
+    const states = await loadMaintenanceStates(profiles)
+    return profiles.map((profile) => {
+      const cached = profileRateLimitService.applyCachedRateLimits([profile])[0]
+      const stateLimits = states.get(profile.id)?.rateLimits
+      return cached.rateLimits === undefined && stateLimits
+        ? { ...cached, rateLimits: stateLimits }
+        : cached
+    })
+  }
+
   const buildRefreshLabel = (
     statuses: Map<string, ProfileRefreshStatus>,
   ): ((profileId: string) => string) => {
@@ -99,19 +110,13 @@ export function createExtensionUiController(
     const autoRefreshEnabled = intervalSeconds > 0
     return (profileId: string): string => {
       const status = statuses.get(profileId)
-      if (!status) {
-        return ''
-      }
-      if (status.isRefreshing) {
-        return '…'
-      }
+      if (!status) return ''
+      if (status.isRefreshing) return '…'
       const cells = formatProfileRefreshCells(status, {
         now,
         autoRefreshEnabled,
       })
-      if (!cells.updated) {
-        return ''
-      }
+      if (!cells.updated) return ''
       return cells.next ? `${cells.updated}/${cells.next}` : cells.updated
     }
   }
@@ -121,7 +126,6 @@ export function createExtensionUiController(
     options: RefreshProfileUiOptions = {},
   ): Promise<void> => {
     const generation = ++refreshProfileUiGeneration
-
     const profiles = await profileManager.listProfiles()
     let activeId = await profileManager.getActiveProfileId()
     if (activeId && !profiles.some((profile) => profile.id === activeId)) {
@@ -130,40 +134,26 @@ export function createExtensionUiController(
     }
 
     const activeHome = codexHomeManager.isEnabled() ? home : undefined
-
     const maintenanceStates = await loadMaintenanceStates(profiles)
-
-    // Apply in-memory cached rate limits; fall back to the state-file rate limits
-    // when the in-memory cache is empty (e.g. after an extension restart or
-    // when another window ran the last maintenance cycle).
     const cachedProfiles = profiles.map((profile) => {
-      const withCache = profileRateLimitService
-        ? profileRateLimitService.applyCachedRateLimits([profile])[0]
-        : profile
+      const withCache = profileRateLimitService.applyCachedRateLimits([profile])[0]
       if (withCache.rateLimits === undefined) {
         const state = maintenanceStates.get(profile.id)
-        if (state?.rateLimits) {
-          return { ...withCache, rateLimits: state.rateLimits }
-        }
+        if (state?.rateLimits) return { ...withCache, rateLimits: state.rateLimits }
       }
       return withCache
     })
-
     const statuses = new Map(
       profiles.map((profile) => {
         const state = maintenanceStates.get(profile.id)
         return [profile.id, mapStateToRefreshStatus(profile.id, state ?? null)]
       }),
     )
-
     const cachedActiveProfile = activeId
       ? cachedProfiles.find((profile) => profile.id === activeId) || null
       : null
 
-    if (generation !== refreshProfileUiGeneration) {
-      return
-    }
-
+    if (generation !== refreshProfileUiGeneration) return
     updateProfileStatus(
       cachedActiveProfile,
       cachedProfiles,
@@ -171,8 +161,6 @@ export function createExtensionUiController(
       buildRefreshLabel(statuses),
     )
 
-    // Background freshness, all-profile coverage, and auth write-back are owned
-    // by the maintenance scheduler. A manual refresh forces every profile.
     if (options.forceRateLimitRefresh) {
       void profileMaintenanceService.requestCycle({
         forceProfileIds: profiles.map((profile) => profile.id),
@@ -194,14 +182,12 @@ export function createExtensionUiController(
       do {
         const currentOptions = nextOptions
         pendingRefreshProfileUiOptions = null
-
         try {
           await refreshProfileUi(runtime.home, currentOptions)
         } catch (error) {
           errorLog('Error refreshing profile UI:', error)
           updateProfileStatus(null, [])
         }
-
         nextOptions = pendingRefreshProfileUiOptions
       } while (nextOptions)
     })()
@@ -213,148 +199,256 @@ export function createExtensionUiController(
     }
   }
 
-  const clearPendingAutoSwitch = (): void => {
-    pendingAutoSwitchTargetId = null
-    pendingAutoSwitchSourceId = null
+  const persistPendingAutoSwitch = async (
+    value: PendingAutoSwitchState | undefined,
+  ): Promise<void> => {
+    pendingAutoSwitch = value
+    await context.globalState.update(PENDING_AUTO_SWITCH_KEY, value)
+  }
+
+  const persistHysteresis = async (
+    value: AutoSwitchHysteresisState | undefined,
+  ): Promise<void> => {
+    hysteresisState = value
+    await context.globalState.update(AUTO_SWITCH_HYSTERESIS_KEY, value)
+  }
+
+  const clearPendingAutoSwitch = async (reason?: string): Promise<void> => {
+    if (pendingAutoSwitch && reason) {
+      autoSwitchLog(`pending cancelled: ${reason}`)
+    }
     pendingAutoSwitchNoticeShown = false
+    await persistPendingAutoSwitch(undefined)
+  }
+
+  const formatResetTime = (resetAt: number): string =>
+    new Date(resetAt).toLocaleString()
+
+  const showAllAccountsExhausted = async (
+    profiles: ProfileSummary[],
+  ): Promise<void> => {
+    const nextResetAt = findNextResetAt(profiles, Date.now())
+    const key = `${profiles.map((profile) => profile.id).join(',')}:${nextResetAt ?? 'unknown'}`
+    if (allAccountsExhaustedNoticeKey === key) return
+    allAccountsExhaustedNoticeKey = key
+    const resetText = nextResetAt
+      ? ` Next known reset: ${formatResetTime(nextResetAt)}.`
+      : ''
+    autoSwitchLog(`all accounts exhausted.${resetText}`)
+    await vscode.window.showWarningMessage(
+      `All Codex accounts are currently exhausted.${resetText}`,
+    )
+  }
+
+  const selectTarget = async (
+    threshold: number,
+    recoveryPercent: number,
+  ): Promise<{
+    profiles: ProfileSummary[]
+    active: ProfileSummary
+    target: ProfileSummary | undefined
+    reason: string
+  } | null> => {
+    const profiles = await profileManager.listProfiles()
+    const activeId = await profileManager.getActiveProfileId()
+    if (!activeId || profiles.length < 2) return null
+
+    const profilesWithLimits = await applyRateLimitState(profiles)
+    const active = profilesWithLimits.find((profile) => profile.id === activeId)
+    if (!active) return null
+
+    if (
+      hysteresisState &&
+      !isHysteresisBlocked(
+        profilesWithLimits.find(
+          (profile) => profile.id === hysteresisState?.profileId,
+        ) ?? active,
+        hysteresisState,
+        recoveryPercent,
+        Date.now(),
+      )
+    ) {
+      autoSwitchLog(`hysteresis released for ${hysteresisState.profileId}`)
+      await persistHysteresis(undefined)
+    }
+
+    const eligibleProfiles = profilesWithLimits.filter(
+      (profile) =>
+        profile.id === activeId ||
+        !isHysteresisBlocked(
+          profile,
+          hysteresisState,
+          recoveryPercent,
+          Date.now(),
+        ),
+    )
+    const target = chooseAutoSwitchTarget(
+      eligibleProfiles,
+      activeId,
+      threshold,
+    )
+    return {
+      profiles: profilesWithLimits,
+      active,
+      target,
+      reason: describeThresholdReason(active, threshold),
+    }
   }
 
   const applyAutoSwitch = async (
-    sourceId: string,
-    targetId: string,
+    state: PendingAutoSwitchState,
+    threshold: number,
+    recoveryPercent: number,
   ): Promise<boolean> => {
-    const profiles = await profileManager.listProfiles()
-    const activeId = await profileManager.getActiveProfileId()
-    if (activeId !== sourceId) {
-      clearPendingAutoSwitch()
+    const selection = await selectTarget(threshold, recoveryPercent)
+    if (!selection || selection.active.id !== state.sourceId) {
+      await clearPendingAutoSwitch('active profile changed')
+      return false
+    }
+    if (!selection.target) {
+      await clearPendingAutoSwitch('no eligible target remains')
+      await showAllAccountsExhausted(selection.profiles)
       return false
     }
 
-    const previous = profiles.find((profile) => profile.id === sourceId)
-    const target = profiles.find((profile) => profile.id === targetId)
-    if (!target) {
-      clearPendingAutoSwitch()
-      return false
+    const target = selection.target
+    if (target.id !== state.targetId) {
+      autoSwitchLog(
+        `${selection.active.name}: pending target re-evaluated ${state.targetId} -> ${target.name}`,
+      )
     }
-
     const switched = await profileManager.setActiveProfileId(target.id)
-    if (!switched) {
-      return false
-    }
+    if (!switched) return false
 
-    clearPendingAutoSwitch()
+    const blockedUntilResetAt = getTriggeredResetAt(selection.active, threshold)
+    await persistHysteresis({
+      profileId: selection.active.id,
+      blockedUntilResetAt,
+    })
+    await clearPendingAutoSwitch()
     lastAutoSwitchAt = Date.now()
+    allAccountsExhaustedNoticeKey = null
     await refreshUi()
-    vscode.window.showInformationMessage(
-      previous
-        ? `Codex account ${previous.name} reached its usage threshold. Switched automatically to ${target.name}.`
-        : `Codex usage threshold reached. Switched automatically to ${target.name}.`,
-    )
 
-    // Codex can keep authentication in its extension-host process. Restarting
-    // that host makes the newly written auth.json effective for the next turn;
-    // the helper falls back to a full window reload only when necessary.
+    const reason = selection.reason || state.reason || 'usage threshold reached'
+    autoSwitchLog(
+      `${selection.active.name} ${reason} -> switched to ${target.name}`,
+    )
+    vscode.window.showInformationMessage(
+      `Codex account ${selection.active.name} reached ${reason}. Switched automatically to ${target.name}.`,
+    )
     await restartExtensionHostOrReloadWindow()
     return true
   }
 
   const applyPendingAutoSwitch = async (): Promise<void> => {
-    if (!pendingAutoSwitchSourceId || !pendingAutoSwitchTargetId) {
+    if (!pendingAutoSwitch) {
       vscode.window.showInformationMessage(
         'Codex Switch has no pending automatic account switch.',
       )
       return
     }
-
-    await applyAutoSwitch(
-      pendingAutoSwitchSourceId,
-      pendingAutoSwitchTargetId,
+    const config = vscode.workspace.getConfiguration('codexSwitch')
+    const threshold = normalizeAutoSwitchThreshold(
+      config.get<number>('autoSwitchThresholdPercent', 99),
     )
+    const recoveryPercent = Math.min(
+      threshold - 1,
+      Math.max(0, config.get<number>('autoSwitchRecoveryPercent', 90)),
+    )
+    await applyAutoSwitch(pendingAutoSwitch, threshold, recoveryPercent)
   }
 
   const queueAutoSwitch = async (
-    source: ProfileSummary | undefined,
+    source: ProfileSummary,
     target: ProfileSummary,
+    reason: string,
   ): Promise<void> => {
-    pendingAutoSwitchSourceId = source?.id ?? null
-    pendingAutoSwitchTargetId = target.id
-
-    if (pendingAutoSwitchNoticeShown) {
-      return
+    const nextState: PendingAutoSwitchState = {
+      sourceId: source.id,
+      targetId: target.id,
+      reason,
+      createdAt: Date.now(),
     }
+    const changed =
+      !pendingAutoSwitch ||
+      pendingAutoSwitch.sourceId !== nextState.sourceId ||
+      pendingAutoSwitch.targetId !== nextState.targetId ||
+      pendingAutoSwitch.reason !== nextState.reason
+
+    if (changed) {
+      await persistPendingAutoSwitch(nextState)
+      pendingAutoSwitchNoticeShown = false
+      autoSwitchLog(`${source.name} ${reason} -> pending ${target.name}`)
+    }
+    if (pendingAutoSwitchNoticeShown) return
     pendingAutoSwitchNoticeShown = true
 
-    const sourceName = source?.name ?? 'Current Codex account'
     const action = await vscode.window.showWarningMessage(
-      `${sourceName} reached the automatic switch threshold. A switch to ${target.name} is pending so an active Codex response is not interrupted. Apply it after the current turn finishes.`,
+      `${source.name} reached ${reason}. A switch to ${target.name} is pending so an active Codex response is not interrupted. Apply it after the current turn finishes.`,
       'Switch Now',
     )
-    if (action === 'Switch Now') {
-      await applyPendingAutoSwitch()
-    }
+    if (action === 'Switch Now') await applyPendingAutoSwitch()
   }
 
   const maybeAutoSwitchProfile = async (): Promise<void> => {
     const config = vscode.workspace.getConfiguration('codexSwitch')
     if (!config.get<boolean>('autoSwitchOnRateLimit', true)) {
-      clearPendingAutoSwitch()
+      await clearPendingAutoSwitch('automatic switching disabled')
       return
     }
 
     const threshold = normalizeAutoSwitchThreshold(
       config.get<number>('autoSwitchThresholdPercent', 99),
     )
+    const recoveryPercent = Math.min(
+      threshold - 1,
+      Math.max(0, config.get<number>('autoSwitchRecoveryPercent', 90)),
+    )
     const cooldownSeconds = Math.max(
       5,
       config.get<number>('autoSwitchCooldownSeconds', 30),
     )
-    const now = Date.now()
-    if (now - lastAutoSwitchAt < cooldownSeconds * 1000) {
+    if (Date.now() - lastAutoSwitchAt < cooldownSeconds * 1000) return
+
+    const selection = await selectTarget(threshold, recoveryPercent)
+    if (!selection) {
+      await clearPendingAutoSwitch('no active profile or insufficient profiles')
       return
     }
 
-    const profiles = await profileManager.listProfiles()
-    const activeId = await profileManager.getActiveProfileId()
-    if (!activeId || profiles.length < 2) {
-      clearPendingAutoSwitch()
+    if (!selection.reason) {
+      await clearPendingAutoSwitch('active account recovered below threshold')
+      allAccountsExhaustedNoticeKey = null
       return
     }
 
-    const states = await loadMaintenanceStates(profiles)
-    const profilesWithLimits = profiles.map((profile) => {
-      const cached = profileRateLimitService.applyCachedRateLimits([profile])[0]
-      const stateLimits = states.get(profile.id)?.rateLimits
-      return cached.rateLimits === undefined && stateLimits
-        ? { ...cached, rateLimits: stateLimits }
-        : cached
-    })
+    if (!selection.target) {
+      await clearPendingAutoSwitch('no eligible target')
+      await showAllAccountsExhausted(selection.profiles)
+      return
+    }
 
-    const target = chooseAutoSwitchTarget(
-      profilesWithLimits,
-      activeId,
+    allAccountsExhaustedNoticeKey = null
+    if (config.get<boolean>('autoSwitchDeferUntilSafe', true)) {
+      await queueAutoSwitch(selection.active, selection.target, selection.reason)
+      return
+    }
+
+    await applyAutoSwitch(
+      {
+        sourceId: selection.active.id,
+        targetId: selection.target.id,
+        reason: selection.reason,
+        createdAt: Date.now(),
+      },
       threshold,
+      recoveryPercent,
     )
-    if (!target) {
-      clearPendingAutoSwitch()
-      return
-    }
-
-    const previous = profilesWithLimits.find(
-      (profile) => profile.id === activeId,
-    )
-    const deferUntilSafe = config.get<boolean>('autoSwitchDeferUntilSafe', true)
-    if (deferUntilSafe) {
-      await queueAutoSwitch(previous, target)
-      return
-    }
-
-    await applyAutoSwitch(activeId, target.id)
   }
 
   const requestAutoSwitch = (): void => {
-    if (autoSwitchPromise) {
-      return
-    }
+    if (autoSwitchPromise) return
     autoSwitchPromise = maybeAutoSwitchProfile()
       .catch((error) => {
         errorLog('Error automatically switching Codex profile:', error)
@@ -369,8 +463,6 @@ export function createExtensionUiController(
     applyPendingAutoSwitch,
   )
 
-  // Re-render whenever the maintenance scheduler publishes a new result and
-  // evaluate whether the active account should fail over to another profile.
   profileMaintenanceService.setStateChangedListener(() => {
     void refreshUi()
     requestAutoSwitch()
@@ -380,13 +472,10 @@ export function createExtensionUiController(
   context.subscriptions.push(
     applyPendingAutoSwitchCommand,
     vscode.window.onDidChangeWindowState((state) => {
-      if (!state.focused) {
-        return
-      }
-      // Refresh local UI from shared state and request a cycle without
-      // bypassing freshness; the lease prevents duplicate background work.
+      if (!state.focused) return
       void profileMaintenanceService.requestCycle()
       void refreshUi()
+      requestAutoSwitch()
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (
@@ -417,6 +506,7 @@ export function createExtensionUiController(
       if (
         event.affectsConfiguration('codexSwitch.autoSwitchOnRateLimit') ||
         event.affectsConfiguration('codexSwitch.autoSwitchThresholdPercent') ||
+        event.affectsConfiguration('codexSwitch.autoSwitchRecoveryPercent') ||
         event.affectsConfiguration('codexSwitch.autoSwitchDeferUntilSafe') ||
         event.affectsConfiguration('codexSwitch.autoSwitchCooldownSeconds')
       ) {
@@ -427,6 +517,12 @@ export function createExtensionUiController(
       void profileMaintenanceService.dispose()
     }),
   )
+
+  if (pendingAutoSwitch) {
+    autoSwitchLog(
+      `restored pending switch ${pendingAutoSwitch.sourceId} -> ${pendingAutoSwitch.targetId}`,
+    )
+  }
 
   return {
     refreshUi,
