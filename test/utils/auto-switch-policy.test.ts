@@ -4,6 +4,7 @@ import test from 'node:test'
 import type { ProfileSummary } from '../../src/types'
 import {
   chooseAutoSwitchTarget,
+  chooseStartupResetTarget,
   getAutoSwitchThresholdForWindow,
   isProfileRateLimited,
   minimumAutoSwitchThreshold,
@@ -210,4 +211,47 @@ test('chooseAutoSwitchTarget does not reward a distant reset', () => {
   ]
 
   assert.equal(chooseAutoSwitchTarget(profiles, 'a', thresholds, now)?.id, 'c')
+})
+
+test('chooseStartupResetTarget selects the usable account with the nearest future reset', () => {
+  const now = 1_000_000
+  const profiles = [
+    profile('a', 20, 20, { primaryReset: now + 4 * 60 * 60 * 1000 }),
+    profile('b', 80, 40, { primaryReset: now + 10 * 60 * 1000 }),
+    profile('c', 10, 10, { primaryReset: now + 2 * 60 * 60 * 1000 }),
+  ]
+
+  assert.equal(chooseStartupResetTarget(profiles, thresholds, now)?.id, 'b')
+})
+
+test('chooseStartupResetTarget skips accounts already at an auto-switch threshold', () => {
+  const now = 1_000_000
+  const profiles = [
+    profile('a', 96, 20, { primaryReset: now + 2 * 60 * 1000 }),
+    profile('b', 50, 40, { primaryReset: now + 30 * 60 * 1000 }),
+  ]
+
+  assert.equal(chooseStartupResetTarget(profiles, thresholds, now)?.id, 'b')
+})
+
+test('chooseStartupResetTarget ignores unknown and elapsed resets', () => {
+  const now = 1_000_000
+  const unknown = profile('a', 20, 20)
+  const elapsed = profile('b', 20, 20, { primaryReset: now - 1 })
+
+  assert.equal(
+    chooseStartupResetTarget([unknown, elapsed], thresholds, now),
+    undefined,
+  )
+})
+
+test('chooseStartupResetTarget breaks equal-reset ties by availability score', () => {
+  const now = 1_000_000
+  const resetAt = now + 30 * 60 * 1000
+  const profiles = [
+    profile('a', 80, null, { primaryReset: resetAt }),
+    profile('b', 40, null, { primaryReset: resetAt }),
+  ]
+
+  assert.equal(chooseStartupResetTarget(profiles, thresholds, now)?.id, 'b')
 })
