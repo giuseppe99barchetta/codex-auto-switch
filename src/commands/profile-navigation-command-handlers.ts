@@ -13,6 +13,7 @@ import {
 } from '../utils/profile-quick-pick'
 import { type StatusBarClickBehavior } from '../utils/profile-command-options'
 import { formatProfileRefreshLabel } from '../utils/profile-refresh-status'
+import { confirmManualProfileSwitch } from '../utils/manual-switch-guard'
 import type { ProfileSummary } from '../types'
 
 type ProfileNavigationProfileManager = Pick<
@@ -47,6 +48,21 @@ export interface ProfileNavigationCommandDeps {
   runtimeHome: ResolvedCodexHome
   writeClipboardText: (value: string) => Promise<void>
   getStatusBarClickBehavior: () => StatusBarClickBehavior
+  getConfirmManualSwitchDuringActiveChat: () => boolean
+}
+
+async function confirmManualSwitchIfNeeded(
+  deps: Pick<
+    ProfileNavigationCommandDeps,
+    'promptDeps' | 'translate' | 'getConfirmManualSwitchDuringActiveChat'
+  >,
+): Promise<boolean> {
+  return confirmManualProfileSwitch({
+    enabled: deps.getConfirmManualSwitchDuringActiveChat(),
+    executeCommand: deps.promptDeps.executeCommand,
+    showWarningMessage: deps.promptDeps.showWarningMessage,
+    translate: deps.translate,
+  })
 }
 
 async function activateProfileId(
@@ -57,9 +73,14 @@ async function activateProfileId(
     | 'maybeRestartAfterProfileSwitch'
     | 'onAuthChanged'
     | 'translate'
+    | 'getConfirmManualSwitchDuringActiveChat'
   >,
   profileId: string,
 ): Promise<void> {
+  if (!(await confirmManualSwitchIfNeeded(deps))) {
+    return
+  }
+
   const canReplaceLiveAuth = await ensureLiveAuthIsSavedBeforeReplacing(
     deps.promptDeps,
     deps.translate('switch profiles'),
@@ -130,6 +151,7 @@ export async function switchProfileCommand(
     | 'maybeRestartAfterProfileSwitch'
     | 'onAuthChanged'
     | 'createQuickPick'
+    | 'getConfirmManualSwitchDuringActiveChat'
   >,
 ): Promise<void> {
   const rawProfiles = await deps.profileManager.listProfiles()
@@ -214,6 +236,8 @@ export async function switchProfileCommand(
       maybeRestartAfterProfileSwitch: deps.maybeRestartAfterProfileSwitch,
       onAuthChanged: deps.onAuthChanged,
       translate: deps.translate,
+      getConfirmManualSwitchDuringActiveChat:
+        deps.getConfirmManualSwitchDuringActiveChat,
     },
     profileId,
   )
@@ -228,6 +252,7 @@ export async function activateProfileCommand(
     | 'onAuthChanged'
     | 'executeCommand'
     | 'translate'
+    | 'getConfirmManualSwitchDuringActiveChat'
   >,
   profileId?: string,
 ): Promise<void> {
@@ -249,6 +274,7 @@ export async function toggleLastProfileCommand(
     | 'translate'
     | 'maybeRestartAfterProfileSwitch'
     | 'onAuthChanged'
+    | 'getConfirmManualSwitchDuringActiveChat'
   >,
 ): Promise<void> {
   const behavior = deps.getStatusBarClickBehavior()
@@ -258,6 +284,10 @@ export async function toggleLastProfileCommand(
   }
 
   if (behavior === 'toggleLast') {
+    if (!(await confirmManualSwitchIfNeeded(deps))) {
+      return
+    }
+
     const canReplaceLiveAuth = await ensureLiveAuthIsSavedBeforeReplacing(
       deps.promptDeps,
       deps.translate('switch profiles'),
@@ -293,6 +323,8 @@ export async function toggleLastProfileCommand(
       maybeRestartAfterProfileSwitch: deps.maybeRestartAfterProfileSwitch,
       onAuthChanged: deps.onAuthChanged,
       translate: deps.translate,
+      getConfirmManualSwitchDuringActiveChat:
+        deps.getConfirmManualSwitchDuringActiveChat,
     },
     profiles[nextIndex].id,
   )
