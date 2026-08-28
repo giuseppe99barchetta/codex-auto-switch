@@ -142,7 +142,9 @@ export function createExtensionUiController(
     const activeHome = codexHomeManager.isEnabled() ? home : undefined
     const maintenanceStates = await loadMaintenanceStates(profiles)
     const cachedProfiles = profiles.map((profile) => {
-      const withCache = profileRateLimitService.applyCachedRateLimits([profile])[0]
+      const withCache = profileRateLimitService.applyCachedRateLimits([
+        profile,
+      ])[0]
       if (withCache.rateLimits === undefined) {
         const state = maintenanceStates.get(profile.id)
         if (state?.rateLimits) {
@@ -298,11 +300,7 @@ export function createExtensionUiController(
           Date.now(),
         ),
     )
-    const target = chooseAutoSwitchTarget(
-      eligibleProfiles,
-      activeId,
-      threshold,
-    )
+    const target = chooseAutoSwitchTarget(eligibleProfiles, activeId, threshold)
     return {
       profiles: profilesWithLimits,
       active,
@@ -455,7 +453,11 @@ export function createExtensionUiController(
 
     allAccountsExhaustedNoticeKey = null
     if (config.get<boolean>('autoSwitchDeferUntilSafe', true)) {
-      await queueAutoSwitch(selection.active, selection.target, selection.reason)
+      await queueAutoSwitch(
+        selection.active,
+        selection.target,
+        selection.reason,
+      )
       return
     }
 
