@@ -12,7 +12,9 @@ export interface AutoSwitchHysteresisState {
   blockedUntilResetAt?: number
 }
 
-export function formatRateLimitWindowLabel(window: ProfileRateLimitWindow): string {
+export function formatRateLimitWindowLabel(
+  window: ProfileRateLimitWindow,
+): string {
   if (window.windowDurationMins === 300) {
     return '5h'
   }
@@ -66,13 +68,17 @@ export function isHysteresisBlocked(
   if (!state || state.profileId !== profile.id) {
     return false
   }
-  if (state.blockedUntilResetAt !== undefined && now >= state.blockedUntilResetAt) {
+  if (
+    state.blockedUntilResetAt !== undefined &&
+    now >= state.blockedUntilResetAt
+  ) {
     return false
   }
 
-  const windows = [profile.rateLimits?.primary, profile.rateLimits?.secondary].filter(
-    (window): window is ProfileRateLimitWindow => Boolean(window),
-  )
+  const windows = [
+    profile.rateLimits?.primary,
+    profile.rateLimits?.secondary,
+  ].filter((window): window is ProfileRateLimitWindow => Boolean(window))
   if (windows.length === 0) {
     return true
   }
@@ -84,7 +90,10 @@ export function findNextResetAt(
   now: number,
 ): number | undefined {
   const resetTimes = profiles
-    .flatMap((profile) => [profile.rateLimits?.primary, profile.rateLimits?.secondary])
+    .flatMap((profile) => [
+      profile.rateLimits?.primary,
+      profile.rateLimits?.secondary,
+    ])
     .filter((window): window is ProfileRateLimitWindow => Boolean(window))
     .map((window) => window.resetsAt)
     .filter((value): value is number => typeof value === 'number' && value > now)
