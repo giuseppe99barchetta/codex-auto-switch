@@ -48,7 +48,7 @@ export interface ProfileNavigationCommandDeps {
   runtimeHome: ResolvedCodexHome
   writeClipboardText: (value: string) => Promise<void>
   getStatusBarClickBehavior: () => StatusBarClickBehavior
-  getConfirmManualSwitchDuringActiveChat: () => boolean
+  getConfirmManualSwitchDuringActiveChat?: () => boolean
 }
 
 async function confirmManualSwitchIfNeeded(
@@ -58,7 +58,7 @@ async function confirmManualSwitchIfNeeded(
   >,
 ): Promise<boolean> {
   return confirmManualProfileSwitch({
-    enabled: deps.getConfirmManualSwitchDuringActiveChat(),
+    enabled: deps.getConfirmManualSwitchDuringActiveChat?.() ?? true,
     executeCommand: deps.promptDeps.executeCommand,
     showWarningMessage: deps.promptDeps.showWarningMessage,
     translate: deps.translate,
