@@ -110,13 +110,19 @@ export function createExtensionUiController(
     const autoRefreshEnabled = intervalSeconds > 0
     return (profileId: string): string => {
       const status = statuses.get(profileId)
-      if (!status) return ''
-      if (status.isRefreshing) return '…'
+      if (!status) {
+        return ''
+      }
+      if (status.isRefreshing) {
+        return '…'
+      }
       const cells = formatProfileRefreshCells(status, {
         now,
         autoRefreshEnabled,
       })
-      if (!cells.updated) return ''
+      if (!cells.updated) {
+        return ''
+      }
       return cells.next ? `${cells.updated}/${cells.next}` : cells.updated
     }
   }
@@ -139,7 +145,9 @@ export function createExtensionUiController(
       const withCache = profileRateLimitService.applyCachedRateLimits([profile])[0]
       if (withCache.rateLimits === undefined) {
         const state = maintenanceStates.get(profile.id)
-        if (state?.rateLimits) return { ...withCache, rateLimits: state.rateLimits }
+        if (state?.rateLimits) {
+          return { ...withCache, rateLimits: state.rateLimits }
+        }
       }
       return withCache
     })
@@ -153,7 +161,9 @@ export function createExtensionUiController(
       ? cachedProfiles.find((profile) => profile.id === activeId) || null
       : null
 
-    if (generation !== refreshProfileUiGeneration) return
+    if (generation !== refreshProfileUiGeneration) {
+      return
+    }
     updateProfileStatus(
       cachedActiveProfile,
       cachedProfiles,
@@ -229,7 +239,9 @@ export function createExtensionUiController(
   ): Promise<void> => {
     const nextResetAt = findNextResetAt(profiles, Date.now())
     const key = `${profiles.map((profile) => profile.id).join(',')}:${nextResetAt ?? 'unknown'}`
-    if (allAccountsExhaustedNoticeKey === key) return
+    if (allAccountsExhaustedNoticeKey === key) {
+      return
+    }
     allAccountsExhaustedNoticeKey = key
     const resetText = nextResetAt
       ? ` Next known reset: ${formatResetTime(nextResetAt)}.`
@@ -251,11 +263,15 @@ export function createExtensionUiController(
   } | null> => {
     const profiles = await profileManager.listProfiles()
     const activeId = await profileManager.getActiveProfileId()
-    if (!activeId || profiles.length < 2) return null
+    if (!activeId || profiles.length < 2) {
+      return null
+    }
 
     const profilesWithLimits = await applyRateLimitState(profiles)
     const active = profilesWithLimits.find((profile) => profile.id === activeId)
-    if (!active) return null
+    if (!active) {
+      return null
+    }
 
     if (
       hysteresisState &&
@@ -318,7 +334,9 @@ export function createExtensionUiController(
       )
     }
     const switched = await profileManager.setActiveProfileId(target.id)
-    if (!switched) return false
+    if (!switched) {
+      return false
+    }
 
     const blockedUntilResetAt = getTriggeredResetAt(selection.active, threshold)
     await persistHysteresis({
@@ -381,14 +399,18 @@ export function createExtensionUiController(
       pendingAutoSwitchNoticeShown = false
       autoSwitchLog(`${source.name} ${reason} -> pending ${target.name}`)
     }
-    if (pendingAutoSwitchNoticeShown) return
+    if (pendingAutoSwitchNoticeShown) {
+      return
+    }
     pendingAutoSwitchNoticeShown = true
 
     const action = await vscode.window.showWarningMessage(
       `${source.name} reached ${reason}. A switch to ${target.name} is pending so an active Codex response is not interrupted. Apply it after the current turn finishes.`,
       'Switch Now',
     )
-    if (action === 'Switch Now') await applyPendingAutoSwitch()
+    if (action === 'Switch Now') {
+      await applyPendingAutoSwitch()
+    }
   }
 
   const maybeAutoSwitchProfile = async (): Promise<void> => {
@@ -409,7 +431,9 @@ export function createExtensionUiController(
       5,
       config.get<number>('autoSwitchCooldownSeconds', 30),
     )
-    if (Date.now() - lastAutoSwitchAt < cooldownSeconds * 1000) return
+    if (Date.now() - lastAutoSwitchAt < cooldownSeconds * 1000) {
+      return
+    }
 
     const selection = await selectTarget(threshold, recoveryPercent)
     if (!selection) {
@@ -448,7 +472,9 @@ export function createExtensionUiController(
   }
 
   const requestAutoSwitch = (): void => {
-    if (autoSwitchPromise) return
+    if (autoSwitchPromise) {
+      return
+    }
     autoSwitchPromise = maybeAutoSwitchProfile()
       .catch((error) => {
         errorLog('Error automatically switching Codex profile:', error)
@@ -472,7 +498,9 @@ export function createExtensionUiController(
   context.subscriptions.push(
     applyPendingAutoSwitchCommand,
     vscode.window.onDidChangeWindowState((state) => {
-      if (!state.focused) return
+      if (!state.focused) {
+        return
+      }
       void profileMaintenanceService.requestCycle()
       void refreshUi()
       requestAutoSwitch()
