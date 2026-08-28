@@ -3,7 +3,7 @@ export interface RefreshProfileUiOptions {
   refreshActiveRateLimitOnly?: boolean
 }
 
-export const DEFAULT_RATE_LIMIT_AUTO_REFRESH_INTERVAL_SECONDS = 900
+export const DEFAULT_RATE_LIMIT_AUTO_REFRESH_INTERVAL_SECONDS = 60
 export const MIN_ENABLED_RATE_LIMIT_AUTO_REFRESH_INTERVAL_SECONDS = 30
 export const MAX_RATE_LIMIT_AUTO_REFRESH_INTERVAL_SECONDS = 43200
 
