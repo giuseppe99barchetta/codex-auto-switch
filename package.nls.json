@@ -9,6 +9,7 @@
   "configuration.codexCliPath.description": "Path to the Codex CLI binary used for account rate limits. Leave empty to auto-detect",
   "configuration.rateLimitAutoRefreshIntervalSeconds.description": "How often Codex account rate limits refresh automatically in the background. This also keeps saved Codex authentication current when Codex rotates it. Set to 0 for manual refresh only",
   "configuration.autoSwitchOnRateLimit.description": "Automatically switch to another saved Codex profile when the active account reaches its configured usage threshold",
+  "configuration.autoSelectNearestResetOnStartup.description": "At VS Code startup, automatically select the usable saved Codex account whose next known quota reset is closest, so quota that would reset sooner is consumed first",
   "configuration.autoSwitchThresholdPercent.description": "Fallback usage percentage that triggers automatic switching for rate-limit windows other than the dedicated 5-hour and weekly windows",
   "configuration.autoSwitch5hThresholdPercent.description": "Usage percentage that triggers automatic switching for the 5-hour Codex rate-limit window",
   "configuration.autoSwitchWeeklyThresholdPercent.description": "Usage percentage that triggers automatic switching for the weekly Codex rate-limit window",
