@@ -79,6 +79,10 @@
         "title": "%command.profile.toggleLast.title%"
       },
       {
+        "command": "codex-switch.autoSwitch.toggle",
+        "title": "%command.autoSwitch.toggle.title%"
+      },
+      {
         "command": "codex-switch.profile.addFromCodexAuthFile",
         "title": "%command.profile.addFromCodexAuthFile.title%"
       },
